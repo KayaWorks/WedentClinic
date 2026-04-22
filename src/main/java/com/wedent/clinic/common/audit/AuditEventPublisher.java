@@ -1,7 +1,7 @@
 package com.wedent.clinic.common.audit;
 
 import com.wedent.clinic.common.audit.event.AuditEvent;
-import com.wedent.clinic.common.web.RequestContextFilter;
+import com.wedent.clinic.common.web.WedentRequestContextFilter;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.MDC;
 import org.springframework.context.ApplicationEventPublisher;
@@ -33,7 +33,7 @@ public class AuditEventPublisher {
         if (event.traceId() != null && !event.traceId().isBlank()) {
             return event;
         }
-        String traceId = MDC.get(RequestContextFilter.MDC_TRACE_ID);
+        String traceId = MDC.get(WedentRequestContextFilter.MDC_TRACE_ID);
         if (traceId == null || traceId.isBlank()) {
             return event;
         }
