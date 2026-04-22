@@ -1,0 +1,59 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      # Catch leaks in prod; threshold tuned well above p99 query time.
+      leak-detection-threshold: 60000
+      pool-name: WedentHikari
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          lob:
+            non_contextual_creation: true
+  # Prod runs behind a proxy — never serve the actuator on the business port
+  # implicitly; the ops team wires the management port through the infra.
+
+server:
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+  # Don't leak server version in Server header.
+  tomcat:
+    remoteip:
+      remote-ip-header: X-Forwarded-For
+      protocol-header: X-Forwarded-Proto
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:8081}
+  endpoint:
+    health:
+      show-details: never
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    tags:
+      application: wedent-clinic
+
+logging:
+  level:
+    root: WARN
+    com.wedent.clinic: INFO
+
+app:
+  bootstrap:
+    # Hard off in prod — seeds are strictly a dev convenience.
+    enabled: false

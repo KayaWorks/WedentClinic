@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/wedent
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Lapoz6161}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
+
+logging:
+  level:
+    root: INFO
+    com.wedent.clinic: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+    org.springframework.security: INFO
+
+# Dev-only bootstrap seed. Safe to re-run; idempotent.
+# Turn off by setting enabled: false (or deleting this block) when you
+# want to manage users strictly through the signup API.
+app:
+  bootstrap:
+    enabled: true
+    company-name: Wedent Demo
+    company-tax-number: "0000000001"
+    clinic-name: Wedent Main Clinic
+    owner-email: owner@wedent.local
+    owner-password: ChangeMe!123
+    owner-first-name: Wedent
+    owner-last-name: Owner

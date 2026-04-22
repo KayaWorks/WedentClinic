@@ -1,0 +1,26 @@
+package com.wedent.clinic.common.exception;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+
+@Getter
+@RequiredArgsConstructor
+public enum ErrorCode {
+
+    VALIDATION_ERROR("VALIDATION_ERROR", HttpStatus.BAD_REQUEST),
+    INVALID_REQUEST("INVALID_REQUEST", HttpStatus.BAD_REQUEST),
+    RESOURCE_NOT_FOUND("RESOURCE_NOT_FOUND", HttpStatus.NOT_FOUND),
+    DUPLICATE_RESOURCE("DUPLICATE_RESOURCE", HttpStatus.CONFLICT),
+    APPOINTMENT_CONFLICT("APPOINTMENT_CONFLICT", HttpStatus.CONFLICT),
+    UNAUTHORIZED("UNAUTHORIZED", HttpStatus.UNAUTHORIZED),
+    ACCESS_DENIED("ACCESS_DENIED", HttpStatus.FORBIDDEN),
+    INVALID_CREDENTIALS("INVALID_CREDENTIALS", HttpStatus.UNAUTHORIZED),
+    TENANT_SCOPE_VIOLATION("TENANT_SCOPE_VIOLATION", HttpStatus.FORBIDDEN),
+    BUSINESS_RULE_VIOLATION("BUSINESS_RULE_VIOLATION", HttpStatus.UNPROCESSABLE_ENTITY),
+    TOO_MANY_REQUESTS("TOO_MANY_REQUESTS", HttpStatus.TOO_MANY_REQUESTS),
+    INTERNAL_ERROR("INTERNAL_ERROR", HttpStatus.INTERNAL_SERVER_ERROR);
+
+    private final String code;
+    private final HttpStatus httpStatus;
+}

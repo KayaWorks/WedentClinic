@@ -1,0 +1,89 @@
+spring:
+  application:
+    name: wedent-clinic
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  lifecycle:
+    # Grace period SpringBoot waits for in-flight requests during shutdown.
+    timeout-per-shutdown-phase: 25s
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: false
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+          batch_size: 30
+        order_inserts: true
+        order_updates: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+server:
+  port: ${SERVER_PORT:8080}
+  # Graceful shutdown lets in-flight requests finish before the JVM exits.
+  # Pair with `spring.lifecycle.timeout-per-shutdown-phase` below.
+  shutdown: graceful
+  forward-headers-strategy: framework
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: never
+  tomcat:
+    threads:
+      max: ${TOMCAT_MAX_THREADS:200}
+      min-spare: ${TOMCAT_MIN_SPARE:20}
+    accept-count: 100
+    max-connections: 8192
+    connection-timeout: 5s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    distribution:
+      # Publish HTTP server timings as a histogram so Prometheus/Grafana can
+      # compute p95/p99 latencies server-side instead of asking the client to.
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:dev-secret-please-override-in-production-environment-256bits-minimum}
+      access-token-expiration-minutes: ${JWT_ACCESS_EXPIRATION:60}
+      issuer: ${JWT_ISSUER:wedent-clinic}
+    public-paths:
+      - /api/auth/**
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /actuator/health
+      - /actuator/info

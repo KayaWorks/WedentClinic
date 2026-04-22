@@ -1,0 +1,34 @@
+# Profile used by Testcontainers-backed integration tests.
+# Datasource/flyway/ddl settings are injected at runtime via @DynamicPropertySource
+# in AbstractPostgresIntegrationTest — nothing is hardcoded here so a local
+# postgres on 5432 is never accidentally used.
+
+spring:
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+logging:
+  level:
+    root: WARN
+    com.wedent.clinic: INFO
+    org.hibernate.SQL: WARN
+    org.springframework.security: WARN
+
+app:
+  security:
+    jwt:
+      secret: integration-tests-only-please-ignore-0123456789abcdef0123456789
+      access-token-expiration-minutes: 60
+      issuer: wedent-clinic-it
+    public-paths:
+      - /api/auth/**
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /actuator/health
+      - /actuator/info
+  bootstrap:
+    enabled: false
