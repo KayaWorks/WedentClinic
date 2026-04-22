@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/wedent
+    url: jdbc:postgresql://nozomi.proxy.rlwy.net:24880:5432/wedent
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:Lapoz6161}
+    password: ${DB_PASSWORD:aMDUkKzwaLGusYUxQDkOFBJAkpcKKFce}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
