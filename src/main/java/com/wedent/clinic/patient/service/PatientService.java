@@ -16,5 +16,12 @@ public interface PatientService {
 
     PageResponse<PatientResponse> search(Long clinicId, String name, String phone, Pageable pageable);
 
+    /**
+     * Scope-aware count for dashboards / tiles. Owners may query any clinic in
+     * the company (or pass {@code null} for a company-wide total); non-owners
+     * are always clamped to their own clinic by {@code TenantScopeResolver}.
+     */
+    long count(Long clinicId);
+
     void delete(Long id);
 }

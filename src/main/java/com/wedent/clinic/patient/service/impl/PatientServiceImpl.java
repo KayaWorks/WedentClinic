@@ -89,6 +89,14 @@ public class PatientServiceImpl implements PatientService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public long count(Long clinicId) {
+        Long companyId = SecurityUtils.currentCompanyId();
+        Long effectiveClinicId = tenantScopeResolver.resolveClinicScope(clinicId);
+        return patientRepository.countByScope(companyId, effectiveClinicId);
+    }
+
+    @Override
     public void delete(Long id) {
         Patient patient = loadInScope(id);
         SecurityUtils.verifyClinicAccess(patient.getClinic().getId());

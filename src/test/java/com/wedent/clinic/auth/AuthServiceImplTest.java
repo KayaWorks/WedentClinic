@@ -2,7 +2,6 @@ package com.wedent.clinic.auth;
 
 import com.wedent.clinic.auth.dto.LoginRequest;
 import com.wedent.clinic.auth.dto.LoginResponse;
-import com.wedent.clinic.auth.entity.RefreshToken;
 import com.wedent.clinic.auth.service.RefreshTokenService;
 import com.wedent.clinic.auth.service.impl.AuthServiceImpl;
 import com.wedent.clinic.common.audit.AuditEventPublisher;
@@ -54,10 +53,8 @@ class AuthServiceImplTest {
         refreshTokenService = Mockito.mock(RefreshTokenService.class);
         auditEventPublisher = Mockito.mock(AuditEventPublisher.class);
 
-        RefreshToken stubRow = RefreshToken.builder().build();
-        stubRow.setId(1L);
         when(refreshTokenService.issue(ArgumentMatchers.any(), anyString(), ArgumentMatchers.any()))
-                .thenReturn(new RefreshTokenService.Issued(stubRow, "raw-refresh"));
+                .thenReturn(new RefreshTokenService.Issued("raw-refresh"));
         when(refreshTokenService.expirationMillis()).thenReturn(14L * 24 * 60 * 60 * 1000);
 
         authService = new AuthServiceImpl(

@@ -2,6 +2,7 @@ package com.wedent.clinic.patient.controller;
 
 import com.wedent.clinic.common.dto.ApiResponse;
 import com.wedent.clinic.common.dto.PageResponse;
+import com.wedent.clinic.patient.dto.PatientCountResponse;
 import com.wedent.clinic.patient.dto.PatientCreateRequest;
 import com.wedent.clinic.patient.dto.PatientResponse;
 import com.wedent.clinic.patient.dto.PatientUpdateRequest;
@@ -50,6 +51,15 @@ public class PatientController {
             @RequestParam(required = false) String phone,
             @ParameterObject Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.ok(patientService.search(clinicId, name, phone, pageable)));
+    }
+
+    @Operation(summary = "Scope-aware patient count (company-wide for owners, clinic-clamped otherwise)")
+    @PreAuthorize("hasAnyRole('CLINIC_OWNER','MANAGER','DOCTOR','STAFF')")
+    @GetMapping("/count")
+    public ResponseEntity<ApiResponse<PatientCountResponse>> count(
+            @RequestParam(required = false) Long clinicId) {
+        long total = patientService.count(clinicId);
+        return ResponseEntity.ok(ApiResponse.ok(new PatientCountResponse(clinicId, total)));
     }
 
     @Operation(summary = "Fetch a patient by id")

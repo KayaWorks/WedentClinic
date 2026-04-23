@@ -25,5 +25,7 @@ public enum AuditEventType {
     // --- User/role administration (reserved for future user-mgmt endpoints) ---
     USER_CREATED,
     USER_DISABLED,
-    USER_ROLE_CHANGED
+    USER_ROLE_CHANGED,
+    /** Self-service password change — all live sessions revoked as a side effect. */
+    USER_PASSWORD_CHANGED
 }

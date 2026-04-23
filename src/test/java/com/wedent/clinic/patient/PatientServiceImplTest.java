@@ -23,7 +23,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class PatientServiceImplTest {
@@ -71,5 +73,27 @@ class PatientServiceImplTest {
 
         assertThatThrownBy(() -> service.create(request))
                 .isInstanceOf(DuplicateResourceException.class);
+    }
+
+    @Test
+    void count_delegatesToRepository_afterClampingClinicScope() {
+        // Owner asked for clinic 9, resolver honours it (owners aren't clamped).
+        when(tenantScopeResolver.resolveClinicScope(9L)).thenReturn(9L);
+        when(patientRepository.countByScope(100L, 9L)).thenReturn(73L);
+
+        long total = service.count(9L);
+
+        assertThat(total).isEqualTo(73);
+        verify(patientRepository).countByScope(100L, 9L);
+    }
+
+    @Test
+    void count_withoutClinicFilter_resolvesScopeToNullForOwner() {
+        when(tenantScopeResolver.resolveClinicScope(null)).thenReturn(null);
+        when(patientRepository.countByScope(100L, null)).thenReturn(512L);
+
+        long total = service.count(null);
+
+        assertThat(total).isEqualTo(512);
     }
 }

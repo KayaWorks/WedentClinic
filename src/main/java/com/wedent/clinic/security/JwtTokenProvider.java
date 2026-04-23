@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -42,6 +43,10 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .issuer(issuer)
                 .subject(user.email())
+                // jti = the unique token identifier; required for server-side revocation
+                // (see AccessTokenBlacklist).  Without it we could only blacklist per-subject
+                // which would log out every parallel session the user has.
+                .id(UUID.randomUUID().toString())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusMillis(expirationMillis)))
                 .claim(CLAIM_USER_ID, user.userId())

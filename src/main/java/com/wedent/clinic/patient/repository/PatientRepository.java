@@ -28,4 +28,15 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
               AND (:phone IS NULL OR p.phone LIKE CONCAT('%', :phone, '%'))
             """)
     Page<Patient> search(Long companyId, Long clinicId, String name, String phone, Pageable pageable);
+
+    /**
+     * Lightweight count for dashboard / "/api/patients/count" without the
+     * list materialization cost of {@link #search}.
+     */
+    @Query("""
+            SELECT COUNT(p) FROM Patient p
+            WHERE p.company.id = :companyId
+              AND (:clinicId IS NULL OR p.clinic.id = :clinicId)
+            """)
+    long countByScope(Long companyId, Long clinicId);
 }

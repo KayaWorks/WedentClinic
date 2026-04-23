@@ -14,8 +14,11 @@ import com.wedent.clinic.common.exception.BusinessException;
 import com.wedent.clinic.common.exception.ErrorCode;
 import com.wedent.clinic.common.exception.InvalidCredentialsException;
 import com.wedent.clinic.security.AuthenticatedUser;
+import com.wedent.clinic.security.JwtTokenProvider;
 import com.wedent.clinic.security.SecurityUtils;
+import com.wedent.clinic.security.blacklist.AccessTokenBlacklist;
 import com.wedent.clinic.security.ratelimit.LoginRateLimiter;
+import io.jsonwebtoken.Claims;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,9 +42,14 @@ import java.util.Map;
 @SecurityRequirements
 public class AuthController {
 
+    private static final String AUTH_HEADER = "Authorization";
+    private static final String BEARER_PREFIX = "Bearer ";
+
     private final AuthService authService;
     private final LoginRateLimiter loginRateLimiter;
     private final AuditEventPublisher auditEventPublisher;
+    private final JwtTokenProvider tokenProvider;
+    private final AccessTokenBlacklist accessTokenBlacklist;
 
     @Operation(summary = "Login with email/password and receive a JWT access token + refresh token")
     @PostMapping("/login")
@@ -91,16 +99,21 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
-    @Operation(summary = "Revoke a refresh token (server-side logout)")
+    @Operation(summary = "Revoke refresh token + blacklist the presented access token")
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@Valid @RequestBody LogoutRequest request,
                                        HttpServletRequest httpRequest) {
         String ip = clientIp(httpRequest);
         authService.logout(request.refreshToken());
 
-        // Audit as the currently-authenticated caller if there is one.
-        // Logout may be called without an access token (e.g. after it expired)
-        // which is perfectly valid — the refresh token itself is the auth.
+        // If the caller included an Authorization header, blacklist that
+        // access token until its natural expiry so it can't keep making
+        // calls with the stale session.
+        String accessToken = bearerToken(httpRequest);
+        if (accessToken != null) {
+            tokenProvider.parse(accessToken).ifPresent(this::blacklist);
+        }
+
         AuthenticatedUser caller = SecurityUtils.currentUserOptional().orElse(null);
         AuditEvent.Builder audit = AuditEvent.builder(AuditEventType.LOGOUT).ipAddress(ip);
         if (caller != null) {
@@ -112,6 +125,19 @@ public class AuthController {
         auditEventPublisher.publish(audit.build());
 
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    private void blacklist(Claims claims) {
+        if (claims.getId() == null || claims.getExpiration() == null) return;
+        accessTokenBlacklist.blacklist(claims.getId(), claims.getExpiration().toInstant());
+    }
+
+    private static String bearerToken(HttpServletRequest request) {
+        String header = request.getHeader(AUTH_HEADER);
+        if (StringUtils.hasText(header) && header.startsWith(BEARER_PREFIX)) {
+            return header.substring(BEARER_PREFIX.length());
+        }
+        return null;
     }
 
     /**

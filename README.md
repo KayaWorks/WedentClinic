@@ -6,10 +6,11 @@ Spring Boot 3 / Java 21 backend for a multi-tenant dental clinic management syst
 
 - Java 21, Spring Boot 3.3.5, Maven
 - Spring Web, Validation, Security (JWT, stateless), Data JPA
-- PostgreSQL 16 + Flyway migrations (V1–V8)
+- PostgreSQL 16 + Flyway migrations (V1–V7)
+- Redis 7 (Spring Data Redis + Spring Cache): refresh-token store, JWT blacklist, login rate limiter, general `@Cacheable` layer
 - Lombok, MapStruct (shared `CommonMapperConfig`), springdoc-openapi
 - JUnit 5, Mockito, Spring Security Test
-- Testcontainers (Postgres) for integration tests; H2 only for legacy smoke tests
+- Testcontainers (Postgres + Redis) for integration tests; H2 only for legacy smoke tests
 
 ## Multi-tenant model
 
@@ -60,7 +61,7 @@ Health: http://localhost:8080/actuator/health
 2. Send `Authorization: Bearer <token>` on subsequent calls
 3. `X-Request-Id` (echoed back) correlates every log line with a request via MDC
 
-Failed logins are rate-limited per `(clientIp, email)` — 10 failures / 10 min window, reset on a successful login. Replace the in-memory limiter with Redis if you scale horizontally.
+Failed logins are rate-limited per `(clientIp, email)` — 10 failures / 10 min window, reset on a successful login. The limiter is Redis-backed (atomic `INCR` + one-shot `EXPIRE` on the first miss of the window), so horizontal scale-out works out of the box.
 
 ## Concurrency-safe appointment booking
 
@@ -84,7 +85,8 @@ All schema changes live under `src/main/resources/db/migration`:
 | V5      | Appointments + single-column indexes                 |
 | V6      | Composite / partial indexes for hot query paths      |
 | V7      | Append-only `audit_log` table (JSONB detail column)  |
-| V8      | `refresh_tokens` (hashed, rotation with replay-detection) |
+
+Refresh tokens moved to Redis (see [Redis / cache](#redis--cache)); there is no `refresh_tokens` table.
 
 ## Tests
 
@@ -110,7 +112,31 @@ Integration tests require a Docker socket (Testcontainers). Containers start onc
 - `/actuator/prometheus` emits Micrometer metrics with common tags `application`, `profile`; HTTP server timings publish a histogram for server-side p95/p99 calculation.
 - Security audit log is append-only (`audit_log` table, V7). Events are published synchronously from the service layer and persisted **after commit** on a dedicated `auditExecutor` pool (see `AsyncConfig`) so the request hot-path is never blocked. Failures on the audit side are logged at WARN and swallowed — losing an audit row must not cascade into a failed user request.
 - OpenAPI/Swagger UI shows full error-response documentation (400/401/403/404/409/422/429/500) for every endpoint via `OpenApiErrorExamplesCustomizer`.
-- Refresh tokens (`/api/auth/refresh`, `/api/auth/logout`) are 256-bit random values handed to clients; only SHA-256 hashes are persisted. Rotation on use + replay detection (nukes every live session for the user) defends against stolen-token replay. Lifetime via `JWT_REFRESH_EXPIRATION_DAYS` (default 14).
+- Refresh tokens (`/api/auth/refresh`, `/api/auth/logout`) are 256-bit random values handed to clients; only SHA-256 hashes are persisted (in Redis). Rotation on use + replay detection (nukes every live session for the user) defends against stolen-token replay. Lifetime via `JWT_REFRESH_EXPIRATION_DAYS` (default 14).
+- Access-token revocation: `/api/auth/logout` also blacklists the current access token's `jti` in Redis until its natural expiry; `JwtAuthenticationFilter` rejects any token whose `jti` is blacklisted.
+
+## Redis / cache
+
+Redis is a hard dependency — the app fails to start without it. Configure via `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` (see `application.yml`). All keys are namespaced with a configurable prefix (default `wedent:`).
+
+| Key pattern                         | Purpose                                                                 |
+|-------------------------------------|-------------------------------------------------------------------------|
+| `wedent:refresh:t:{sha256(token)}`  | Per-refresh-token record (JSON). TTL = token expiry. Revoked records kept until TTL so replay attempts still fire. |
+| `wedent:refresh:u:{userId}`         | SET of active hashes for the user — powers `logout-all`.                |
+| `wedent:jwt:bl:{jti}`               | Access-token blacklist; TTL = remaining lifetime of the access token.   |
+| `wedent:rl:login:{ip\|email}`       | Login rate limiter counter; 10-minute sliding window.                   |
+| `wedent:cache:*`                    | Spring Cache (`@Cacheable`) namespace with Jackson JSON serializer.     |
+
+Tunables live under `app.redis`:
+
+```yaml
+app:
+  redis:
+    key-prefix: wedent:
+    default-ttl: 10m
+```
+
+Integration tests spin a Redis container (`redis:7-alpine`) alongside Postgres via the shared `AbstractPostgresIntegrationTest` base class — no local Redis install needed.
 
 ## Module map
 
@@ -129,8 +155,8 @@ appointment  Appointments + conflict-safe scheduling
 
 ## Roadmap
 
-- Refresh tokens + token revocation list (Redis)
-- Horizontal-safe rate limiting (Redis)
 - Scheduled worker: appointment reminders (email/SMS)
 - Audit log retention policy + cold-storage export job
 - User/role administration endpoints (wired up, but admin UI pending)
+- `/api/users/me` + self-service password change
+- Dashboard summary endpoint (counts + recent activity) for the web shell

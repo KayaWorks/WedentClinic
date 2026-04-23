@@ -1,5 +1,6 @@
 package com.wedent.clinic.security;
 
+import com.wedent.clinic.security.blacklist.AccessTokenBlacklist;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -24,6 +25,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String PREFIX = "Bearer ";
 
     private final JwtTokenProvider tokenProvider;
+    private final AccessTokenBlacklist blacklist;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -32,7 +34,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = extractToken(request);
         if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            tokenProvider.parse(token).ifPresent(claims -> authenticate(claims, request));
+            tokenProvider.parse(token).ifPresent(claims -> {
+                // Drop server-side-revoked tokens before they authenticate a request.
+                // Keeping the check here means downstream filters never see a stale
+                // principal for a logged-out session.
+                if (claims.getId() != null && blacklist.isBlacklisted(claims.getId())) {
+                    return;
+                }
+                authenticate(claims, request);
+            });
         }
         filterChain.doFilter(request, response);
     }

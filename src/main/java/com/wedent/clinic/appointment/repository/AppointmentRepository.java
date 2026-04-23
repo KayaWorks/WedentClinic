@@ -72,4 +72,51 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
                              LocalDate date,
                              AppointmentStatus status,
                              Pageable pageable);
+
+    /**
+     * Dashboard: total active (CREATED|CONFIRMED) appointments in a date
+     * range. "Active" on purpose — the dashboard's "upcoming" tile must not
+     * count slots a patient cancelled.
+     */
+    @Query("""
+            SELECT COUNT(a) FROM Appointment a
+            WHERE a.company.id = :companyId
+              AND (:clinicId IS NULL OR a.clinic.id = :clinicId)
+              AND a.appointmentDate BETWEEN :from AND :to
+              AND a.status IN (com.wedent.clinic.appointment.entity.AppointmentStatus.CREATED,
+                               com.wedent.clinic.appointment.entity.AppointmentStatus.CONFIRMED)
+            """)
+    long countActiveInRange(Long companyId, Long clinicId, LocalDate from, LocalDate to);
+
+    /**
+     * Per-day bucket of active appointments for the "next N days" bar in the
+     * dashboard. Returns {@code (appointmentDate, count)} tuples that the
+     * service layer stitches into a dense 7-day array (zero-filling gaps).
+     */
+    @Query("""
+            SELECT a.appointmentDate, COUNT(a)
+            FROM Appointment a
+            WHERE a.company.id = :companyId
+              AND (:clinicId IS NULL OR a.clinic.id = :clinicId)
+              AND a.appointmentDate BETWEEN :from AND :to
+              AND a.status IN (com.wedent.clinic.appointment.entity.AppointmentStatus.CREATED,
+                               com.wedent.clinic.appointment.entity.AppointmentStatus.CONFIRMED)
+            GROUP BY a.appointmentDate
+            ORDER BY a.appointmentDate
+            """)
+    List<Object[]> countActiveByDateInRange(Long companyId, Long clinicId, LocalDate from, LocalDate to);
+
+    /**
+     * Breakdown by status for a given day — powers the "today" tile
+     * (completed / cancelled / remaining / etc.).
+     */
+    @Query("""
+            SELECT a.status, COUNT(a)
+            FROM Appointment a
+            WHERE a.company.id = :companyId
+              AND (:clinicId IS NULL OR a.clinic.id = :clinicId)
+              AND a.appointmentDate = :date
+            GROUP BY a.status
+            """)
+    List<Object[]> countByStatusForDate(Long companyId, Long clinicId, LocalDate date);
 }

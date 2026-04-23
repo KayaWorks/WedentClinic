@@ -39,7 +39,7 @@ public class AuthServiceImpl implements AuthService {
     private final AuditEventPublisher auditEventPublisher;
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request, String ipAddress, String userAgent) {
         User user = userRepository.findByEmailIgnoreCase(request.email())
                 .orElseThrow(InvalidCredentialsException::new);
@@ -72,10 +72,21 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public RefreshResponse refresh(String rawRefreshToken, String ipAddress, String userAgent) {
         RefreshTokenService.Rotated rotated = refreshTokenService.rotate(rawRefreshToken, ipAddress, userAgent);
-        User user = rotated.newRow().getUser();
+
+        // Refresh holds only the user id — re-hydrate the user so we can stamp
+        // the new access token with current roles and tenant scope.
+        User user = userRepository.findById(rotated.userId())
+                .orElseThrow(InvalidCredentialsException::new);
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            // Race: user was disabled between rotate() and here. Revoke everything
+            // for them and reject — leaking an access token to a locked account is worse
+            // than a noisy error.
+            refreshTokenService.revokeAllForUser(user.getId());
+            throw new InvalidCredentialsException();
+        }
 
         AuthenticatedUser principal = toPrincipal(user);
         String accessToken = tokenProvider.generateAccessToken(principal);
@@ -98,9 +109,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @Transactional
     public void logout(String rawRefreshToken) {
-        // Silent no-op for unknown/empty tokens — prevents enumeration.
         refreshTokenService.revoke(rawRefreshToken);
     }
 

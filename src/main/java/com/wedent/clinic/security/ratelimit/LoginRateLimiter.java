@@ -1,26 +1,28 @@
 package com.wedent.clinic.security.ratelimit;
 
+import com.wedent.clinic.config.CacheProperties;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Per-key sliding-window login attempt limiter. Keys are composite
- * {@code client-ip|email} strings so a single client hammering one account
- * gets blocked, but a shared NAT doesn't collectively starve unrelated users.
+ * Redis-backed sliding-window login attempt limiter.  Keys are the composite
+ * {@code client-ip|email} so a single client hammering one account gets
+ * blocked but a shared NAT doesn't collectively starve unrelated users.
  *
- * <p>In-memory only — acceptable for a single-node deployment but MUST be
- * replaced with Redis (or similar) if the app scales horizontally, otherwise
- * each node enforces the limit independently and an attacker can simply round-
- * robin across them.
+ * <p>Uses an atomic {@code INCR} + conditional {@code EXPIRE} so horizontally-
+ * scaled nodes share the same counter — the previous in-memory implementation
+ * let an attacker round-robin across nodes and avoid the limit entirely.</p>
  *
- * <p>Failure count is reset on a successful login via {@link #onSuccess(String)}.
+ * <p>Key layout: {@code {prefix}rl:login:{ip|email}} → integer counter.
+ * TTL is set on first miss and not refreshed; the window is a true sliding
+ * window starting at the first failure and not extended by later ones — this
+ * matches the in-memory semantics callers already rely on.</p>
  */
 @Component
+@RequiredArgsConstructor
 public class LoginRateLimiter {
 
     /** Max failed attempts within the window before the key is blocked. */
@@ -29,52 +31,29 @@ public class LoginRateLimiter {
     /** Window during which failed attempts are counted. */
     static final Duration WINDOW = Duration.ofMinutes(10);
 
-    private final ConcurrentHashMap<String, Bucket> buckets = new ConcurrentHashMap<>();
-    private final Clock clock;
+    private static final String KEY = "rl:login:";
 
-    public LoginRateLimiter() {
-        this(Clock.systemUTC());
-    }
+    private final StringRedisTemplate redis;
+    private final CacheProperties cacheProperties;
 
-    LoginRateLimiter(Clock clock) {
-        this.clock = clock;
-    }
-
-    /**
-     * @return true if the key is currently over the threshold; the caller must
-     *         reject the request immediately without invoking the downstream
-     *         login service.
-     */
     public boolean isBlocked(String key) {
-        Bucket bucket = buckets.get(key);
-        if (bucket == null) {
-            return false;
-        }
-        Instant now = clock.instant();
-        if (bucket.expired(now)) {
-            buckets.remove(key, bucket);
-            return false;
-        }
-        return bucket.count.get() >= MAX_ATTEMPTS;
+        String raw = redis.opsForValue().get(redisKey(key));
+        if (raw == null) return false;
+        return parseInt(raw) >= MAX_ATTEMPTS;
     }
 
-    /** Records a failed login attempt. */
     public void onFailure(String key) {
-        Instant now = clock.instant();
-        buckets.compute(key, (ignored, existing) -> {
-            if (existing == null || existing.expired(now)) {
-                Bucket fresh = new Bucket(now.plus(WINDOW));
-                fresh.count.set(1);
-                return fresh;
-            }
-            existing.count.incrementAndGet();
-            return existing;
-        });
+        String k = redisKey(key);
+        Long count = redis.opsForValue().increment(k);
+        // Only set TTL on the first failure of the window.  INCR returns 1 in that case;
+        // on later increments we leave the original expiry alone so the window slides.
+        if (count != null && count == 1L) {
+            redis.expire(k, WINDOW);
+        }
     }
 
-    /** Clears the failure counter after a successful login. */
     public void onSuccess(String key) {
-        buckets.remove(key);
+        redis.delete(redisKey(key));
     }
 
     public static String keyOf(String clientIp, String email) {
@@ -83,16 +62,11 @@ public class LoginRateLimiter {
         return ip + "|" + e;
     }
 
-    private static final class Bucket {
-        private final Instant expiresAt;
-        private final AtomicInteger count = new AtomicInteger();
+    private String redisKey(String rawKey) {
+        return cacheProperties.keyPrefix() + KEY + rawKey;
+    }
 
-        Bucket(Instant expiresAt) {
-            this.expiresAt = expiresAt;
-        }
-
-        boolean expired(Instant now) {
-            return !now.isBefore(expiresAt);
-        }
+    private static int parseInt(String s) {
+        try { return Integer.parseInt(s); } catch (NumberFormatException e) { return 0; }
     }
 }
