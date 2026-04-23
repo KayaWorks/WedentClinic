@@ -6,6 +6,8 @@ public record LoginResponse(
         String accessToken,
         String tokenType,
         long expiresInMillis,
+        String refreshToken,
+        long refreshExpiresInMillis,
         Long userId,
         String email,
         String firstName,

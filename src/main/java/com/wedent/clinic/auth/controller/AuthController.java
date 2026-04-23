@@ -2,6 +2,9 @@ package com.wedent.clinic.auth.controller;
 
 import com.wedent.clinic.auth.dto.LoginRequest;
 import com.wedent.clinic.auth.dto.LoginResponse;
+import com.wedent.clinic.auth.dto.LogoutRequest;
+import com.wedent.clinic.auth.dto.RefreshRequest;
+import com.wedent.clinic.auth.dto.RefreshResponse;
 import com.wedent.clinic.auth.service.AuthService;
 import com.wedent.clinic.common.audit.AuditEventPublisher;
 import com.wedent.clinic.common.audit.event.AuditEvent;
@@ -10,20 +13,24 @@ import com.wedent.clinic.common.dto.ApiResponse;
 import com.wedent.clinic.common.exception.BusinessException;
 import com.wedent.clinic.common.exception.ErrorCode;
 import com.wedent.clinic.common.exception.InvalidCredentialsException;
+import com.wedent.clinic.security.AuthenticatedUser;
+import com.wedent.clinic.security.SecurityUtils;
 import com.wedent.clinic.security.ratelimit.LoginRateLimiter;
-import java.util.Map;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @Tag(name = "Authentication")
 @RestController
@@ -36,15 +43,14 @@ public class AuthController {
     private final LoginRateLimiter loginRateLimiter;
     private final AuditEventPublisher auditEventPublisher;
 
-    @Operation(summary = "Login with email/password and receive a JWT access token")
+    @Operation(summary = "Login with email/password and receive a JWT access token + refresh token")
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request,
                                                             HttpServletRequest httpRequest) {
         String ip = clientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
         String key = LoginRateLimiter.keyOf(ip, request.email());
         if (loginRateLimiter.isBlocked(key)) {
-            // Record the rate-limit trip BEFORE throwing so the response-shaping
-            // in GlobalExceptionHandler doesn't swallow the audit.
             auditEventPublisher.publish(AuditEvent.builder(AuditEventType.LOGIN_RATE_LIMITED)
                     .actorEmail(request.email())
                     .ipAddress(ip)
@@ -54,7 +60,7 @@ public class AuthController {
                     "Too many failed login attempts. Try again later.");
         }
         try {
-            LoginResponse response = authService.login(request);
+            LoginResponse response = authService.login(request, ip, userAgent);
             loginRateLimiter.onSuccess(key);
             auditEventPublisher.publish(AuditEvent.builder(AuditEventType.LOGIN_SUCCESS)
                     .actorUserId(response.userId())
@@ -73,6 +79,39 @@ public class AuthController {
                     .build());
             throw e;
         }
+    }
+
+    @Operation(summary = "Exchange a valid refresh token for a new access token (rotates the refresh token)")
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<RefreshResponse>> refresh(@Valid @RequestBody RefreshRequest request,
+                                                                HttpServletRequest httpRequest) {
+        String ip = clientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+        RefreshResponse response = authService.refresh(request.refreshToken(), ip, userAgent);
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    @Operation(summary = "Revoke a refresh token (server-side logout)")
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@Valid @RequestBody LogoutRequest request,
+                                       HttpServletRequest httpRequest) {
+        String ip = clientIp(httpRequest);
+        authService.logout(request.refreshToken());
+
+        // Audit as the currently-authenticated caller if there is one.
+        // Logout may be called without an access token (e.g. after it expired)
+        // which is perfectly valid — the refresh token itself is the auth.
+        AuthenticatedUser caller = SecurityUtils.currentUserOptional().orElse(null);
+        AuditEvent.Builder audit = AuditEvent.builder(AuditEventType.LOGOUT).ipAddress(ip);
+        if (caller != null) {
+            audit.actorUserId(caller.userId())
+                 .actorEmail(caller.email())
+                 .companyId(caller.companyId())
+                 .clinicId(caller.clinicId());
+        }
+        auditEventPublisher.publish(audit.build());
+
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
     /**

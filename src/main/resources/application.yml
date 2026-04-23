@@ -79,6 +79,7 @@ app:
     jwt:
       secret: ${JWT_SECRET:dev-secret-please-override-in-production-environment-256bits-minimum}
       access-token-expiration-minutes: ${JWT_ACCESS_EXPIRATION:60}
+      refresh-token-expiration-days: ${JWT_REFRESH_EXPIRATION_DAYS:14}
       issuer: ${JWT_ISSUER:wedent-clinic}
     public-paths:
       - /api/auth/**

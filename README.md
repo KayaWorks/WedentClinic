@@ -6,7 +6,7 @@ Spring Boot 3 / Java 21 backend for a multi-tenant dental clinic management syst
 
 - Java 21, Spring Boot 3.3.5, Maven
 - Spring Web, Validation, Security (JWT, stateless), Data JPA
-- PostgreSQL 16 + Flyway migrations (V1–V7)
+- PostgreSQL 16 + Flyway migrations (V1–V8)
 - Lombok, MapStruct (shared `CommonMapperConfig`), springdoc-openapi
 - JUnit 5, Mockito, Spring Security Test
 - Testcontainers (Postgres) for integration tests; H2 only for legacy smoke tests
@@ -84,6 +84,7 @@ All schema changes live under `src/main/resources/db/migration`:
 | V5      | Appointments + single-column indexes                 |
 | V6      | Composite / partial indexes for hot query paths      |
 | V7      | Append-only `audit_log` table (JSONB detail column)  |
+| V8      | `refresh_tokens` (hashed, rotation with replay-detection) |
 
 ## Tests
 
@@ -109,6 +110,7 @@ Integration tests require a Docker socket (Testcontainers). Containers start onc
 - `/actuator/prometheus` emits Micrometer metrics with common tags `application`, `profile`; HTTP server timings publish a histogram for server-side p95/p99 calculation.
 - Security audit log is append-only (`audit_log` table, V7). Events are published synchronously from the service layer and persisted **after commit** on a dedicated `auditExecutor` pool (see `AsyncConfig`) so the request hot-path is never blocked. Failures on the audit side are logged at WARN and swallowed — losing an audit row must not cascade into a failed user request.
 - OpenAPI/Swagger UI shows full error-response documentation (400/401/403/404/409/422/429/500) for every endpoint via `OpenApiErrorExamplesCustomizer`.
+- Refresh tokens (`/api/auth/refresh`, `/api/auth/logout`) are 256-bit random values handed to clients; only SHA-256 hashes are persisted. Rotation on use + replay detection (nukes every live session for the user) defends against stolen-token replay. Lifetime via `JWT_REFRESH_EXPIRATION_DAYS` (default 14).
 
 ## Module map
 

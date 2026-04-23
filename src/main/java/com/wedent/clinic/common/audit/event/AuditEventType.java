@@ -11,6 +11,10 @@ public enum AuditEventType {
     LOGIN_SUCCESS,
     LOGIN_FAILURE,
     LOGIN_RATE_LIMITED,
+    LOGOUT,
+    TOKEN_REFRESHED,
+    /** Presented refresh token was already rotated — likely theft. */
+    TOKEN_REFRESH_REPLAY,
 
     // --- Appointment lifecycle (high-risk / PHI-adjacent) ---
     APPOINTMENT_CREATED,

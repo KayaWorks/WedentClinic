@@ -2,7 +2,10 @@ package com.wedent.clinic.auth;
 
 import com.wedent.clinic.auth.dto.LoginRequest;
 import com.wedent.clinic.auth.dto.LoginResponse;
+import com.wedent.clinic.auth.entity.RefreshToken;
+import com.wedent.clinic.auth.service.RefreshTokenService;
 import com.wedent.clinic.auth.service.impl.AuthServiceImpl;
+import com.wedent.clinic.common.audit.AuditEventPublisher;
 import com.wedent.clinic.common.exception.InvalidCredentialsException;
 import com.wedent.clinic.company.entity.Company;
 import com.wedent.clinic.security.JwtProperties;
@@ -14,6 +17,7 @@ import com.wedent.clinic.user.entity.UserStatus;
 import com.wedent.clinic.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,6 +34,8 @@ class AuthServiceImplTest {
     private UserRepository userRepository;
     private PasswordEncoder passwordEncoder;
     private JwtTokenProvider tokenProvider;
+    private RefreshTokenService refreshTokenService;
+    private AuditEventPublisher auditEventPublisher;
     private AuthServiceImpl authService;
 
     @BeforeEach
@@ -40,11 +46,23 @@ class AuthServiceImplTest {
                 new JwtProperties.Jwt(
                         "test-secret-test-secret-test-secret-test-secret-1234567890",
                         60,
+                        14L,
                         "wedent-clinic-test"),
                 java.util.List.of()
         );
         tokenProvider = new JwtTokenProvider(props);
-        authService = new AuthServiceImpl(userRepository, passwordEncoder, tokenProvider);
+        refreshTokenService = Mockito.mock(RefreshTokenService.class);
+        auditEventPublisher = Mockito.mock(AuditEventPublisher.class);
+
+        RefreshToken stubRow = RefreshToken.builder().build();
+        stubRow.setId(1L);
+        when(refreshTokenService.issue(ArgumentMatchers.any(), anyString(), ArgumentMatchers.any()))
+                .thenReturn(new RefreshTokenService.Issued(stubRow, "raw-refresh"));
+        when(refreshTokenService.expirationMillis()).thenReturn(14L * 24 * 60 * 60 * 1000);
+
+        authService = new AuthServiceImpl(
+                userRepository, passwordEncoder, tokenProvider,
+                refreshTokenService, auditEventPublisher);
     }
 
     @Test
@@ -69,9 +87,12 @@ class AuthServiceImplTest {
         when(userRepository.findByEmailIgnoreCase(anyString()))
                 .thenReturn(java.util.Optional.of(user));
 
-        LoginResponse response = authService.login(new LoginRequest("john@example.com", "Secret123!"));
+        LoginResponse response = authService.login(
+                new LoginRequest("john@example.com", "Secret123!"),
+                "10.0.0.1", "JUnit/5");
 
         assertThat(response.accessToken()).isNotBlank();
+        assertThat(response.refreshToken()).isEqualTo("raw-refresh");
         assertThat(response.userId()).isEqualTo(99L);
         assertThat(response.companyId()).isEqualTo(10L);
         assertThat(response.roles()).contains(RoleType.MANAGER.name());
@@ -95,7 +116,9 @@ class AuthServiceImplTest {
         when(userRepository.findByEmailIgnoreCase(anyString()))
                 .thenReturn(java.util.Optional.of(user));
 
-        assertThatThrownBy(() -> authService.login(new LoginRequest("john@example.com", "Wrong!")))
+        assertThatThrownBy(() -> authService.login(
+                new LoginRequest("john@example.com", "Wrong!"),
+                "10.0.0.1", "JUnit/5"))
                 .isInstanceOf(InvalidCredentialsException.class);
     }
 
@@ -117,7 +140,9 @@ class AuthServiceImplTest {
         when(userRepository.findByEmailIgnoreCase(anyString()))
                 .thenReturn(java.util.Optional.of(user));
 
-        assertThatThrownBy(() -> authService.login(new LoginRequest("john@example.com", "Secret123!")))
+        assertThatThrownBy(() -> authService.login(
+                new LoginRequest("john@example.com", "Secret123!"),
+                "10.0.0.1", "JUnit/5"))
                 .isInstanceOf(InvalidCredentialsException.class);
     }
 }
