@@ -24,8 +24,11 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -170,6 +173,63 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         }
         redis.delete(userKey(userId));
         return revoked;
+    }
+
+    @Override
+    public List<SessionView> listSessions(Long userId) {
+        Set<String> hashes = redis.opsForSet().members(userKey(userId));
+        if (hashes == null || hashes.isEmpty()) return List.of();
+
+        List<SessionView> live = new ArrayList<>(hashes.size());
+        Instant now = Instant.now();
+        for (String hash : hashes) {
+            String key = tokenKey(hash);
+            String payload = redis.opsForValue().get(key);
+            if (payload == null) {
+                // Underlying record TTL'd out — sweep the dangling SET entry
+                // so the list stays clean over time.
+                redis.opsForSet().remove(userKey(userId), hash);
+                continue;
+            }
+            Record record = fromJson(payload);
+            if (record.revokedAt != null) continue;
+            if (record.expiresAt != null && record.expiresAt.isBefore(now)) continue;
+            live.add(new SessionView(
+                    hash,
+                    record.issuedAt,
+                    record.expiresAt,
+                    record.ipAddress,
+                    record.userAgent
+            ));
+        }
+        // Newest first — what users expect when scanning a "your devices" list.
+        live.sort(Comparator.comparing(SessionView::issuedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())));
+        return live;
+    }
+
+    @Override
+    public boolean revokeSession(Long userId, String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) return false;
+        String key = tokenKey(sessionId);
+        String payload = redis.opsForValue().get(key);
+        if (payload == null) return false;
+        Record record = fromJson(payload);
+        // Defense against horizontal escalation: never let user A revoke
+        // user B's session even if A somehow guesses B's hash.
+        if (!userId.equals(record.userId)) return false;
+        if (record.revokedAt != null) return false;
+
+        Long remainingMillis = redis.getExpire(key, TimeUnit.MILLISECONDS);
+        if (remainingMillis == null || remainingMillis <= 0) {
+            redis.delete(key);
+            redis.opsForSet().remove(userKey(userId), sessionId);
+            return false;
+        }
+        redis.opsForValue().set(key, toJson(record.withRevocation(Instant.now(), null)),
+                Duration.ofMillis(remainingMillis));
+        redis.opsForSet().remove(userKey(userId), sessionId);
+        return true;
     }
 
     @Override

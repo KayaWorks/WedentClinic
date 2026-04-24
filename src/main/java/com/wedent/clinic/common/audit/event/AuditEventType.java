@@ -15,6 +15,10 @@ public enum AuditEventType {
     TOKEN_REFRESHED,
     /** Presented refresh token was already rotated — likely theft. */
     TOKEN_REFRESH_REPLAY,
+    /** User revoked a single live session of theirs from the device list. */
+    SESSION_REVOKED,
+    /** User wiped every other live session — "log out everywhere" action. */
+    SESSIONS_REVOKED_ALL,
 
     // --- Appointment lifecycle (high-risk / PHI-adjacent) ---
     APPOINTMENT_CREATED,
@@ -27,5 +31,21 @@ public enum AuditEventType {
     USER_DISABLED,
     USER_ROLE_CHANGED,
     /** Self-service password change — all live sessions revoked as a side effect. */
-    USER_PASSWORD_CHANGED
+    USER_PASSWORD_CHANGED,
+
+    // --- Tenant topology (company + clinic lifecycle) ---
+    /** Owner-only: a new clinic was provisioned under the company. */
+    CLINIC_CREATED,
+    /** Owner-only: clinic metadata (name, address, contact) was edited. */
+    CLINIC_UPDATED,
+    /** Owner-only: clinic soft-deleted. Does not cascade to sub-resources. */
+    CLINIC_DELETED,
+    /** Owner-only: company profile fields (name, contact, taxNumber) updated. */
+    COMPANY_UPDATED,
+
+    // --- Treatment lifecycle (feeds payout aggregation) ---
+    TREATMENT_CREATED,
+    TREATMENT_UPDATED,
+    TREATMENT_STATUS_CHANGED,
+    TREATMENT_DELETED
 }

@@ -77,16 +77,20 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
      * Dashboard: total active (CREATED|CONFIRMED) appointments in a date
      * range. "Active" on purpose — the dashboard's "upcoming" tile must not
      * count slots a patient cancelled.
+     *
+     * <p>{@code doctorId} is optional; {@code null} widens to every doctor
+     * inside the resolved clinic/company scope.</p>
      */
     @Query("""
             SELECT COUNT(a) FROM Appointment a
             WHERE a.company.id = :companyId
               AND (:clinicId IS NULL OR a.clinic.id = :clinicId)
+              AND (:doctorId IS NULL OR a.doctor.id = :doctorId)
               AND a.appointmentDate BETWEEN :from AND :to
               AND a.status IN (com.wedent.clinic.appointment.entity.AppointmentStatus.CREATED,
                                com.wedent.clinic.appointment.entity.AppointmentStatus.CONFIRMED)
             """)
-    long countActiveInRange(Long companyId, Long clinicId, LocalDate from, LocalDate to);
+    long countActiveInRange(Long companyId, Long clinicId, Long doctorId, LocalDate from, LocalDate to);
 
     /**
      * Per-day bucket of active appointments for the "next N days" bar in the
@@ -98,13 +102,15 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             FROM Appointment a
             WHERE a.company.id = :companyId
               AND (:clinicId IS NULL OR a.clinic.id = :clinicId)
+              AND (:doctorId IS NULL OR a.doctor.id = :doctorId)
               AND a.appointmentDate BETWEEN :from AND :to
               AND a.status IN (com.wedent.clinic.appointment.entity.AppointmentStatus.CREATED,
                                com.wedent.clinic.appointment.entity.AppointmentStatus.CONFIRMED)
             GROUP BY a.appointmentDate
             ORDER BY a.appointmentDate
             """)
-    List<Object[]> countActiveByDateInRange(Long companyId, Long clinicId, LocalDate from, LocalDate to);
+    List<Object[]> countActiveByDateInRange(Long companyId, Long clinicId, Long doctorId,
+                                            LocalDate from, LocalDate to);
 
     /**
      * Breakdown by status for a given day — powers the "today" tile
@@ -115,8 +121,9 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             FROM Appointment a
             WHERE a.company.id = :companyId
               AND (:clinicId IS NULL OR a.clinic.id = :clinicId)
+              AND (:doctorId IS NULL OR a.doctor.id = :doctorId)
               AND a.appointmentDate = :date
             GROUP BY a.status
             """)
-    List<Object[]> countByStatusForDate(Long companyId, Long clinicId, LocalDate date);
+    List<Object[]> countByStatusForDate(Long companyId, Long clinicId, Long doctorId, LocalDate date);
 }

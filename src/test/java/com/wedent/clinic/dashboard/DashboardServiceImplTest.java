@@ -30,12 +30,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * Unit coverage for the dashboard aggregator. Repositories are mocked so we
  * exercise the stitching logic (zero-filling buckets, whitelisting event
- * types, scope resolution) without a real Postgres.
+ * types, scope + doctor-filter resolution) without a real Postgres.
  */
 class DashboardServiceImplTest {
 
@@ -68,25 +69,22 @@ class DashboardServiceImplTest {
     void summary_ownerSeesCompanyWideScope_andZeroFillsMissingDays() {
         authenticate(new AuthenticatedUser(
                 1L, "owner@x", 7L, null, Set.of("CLINIC_OWNER"), List.of()));
-        // Owner: resolver returns null → queries are company-wide.
         when(scopeResolver.resolveClinicScope(null)).thenReturn(null);
 
         when(patientRepository.countByScope(7L, null)).thenReturn(42L);
         when(employeeRepository.countByScopeAndStatus(7L, null, EmployeeStatus.ACTIVE)).thenReturn(10L);
         when(employeeRepository.countByScopeAndTypeAndStatus(
                 7L, null, EmployeeType.DOCTOR, EmployeeStatus.ACTIVE)).thenReturn(4L);
-        when(appointmentRepository.countActiveInRange(eq(7L), eq(null), any(), any())).thenReturn(15L);
+        when(appointmentRepository.countActiveInRange(eq(7L), eq(null), eq(null), any(), any())).thenReturn(15L);
 
-        // Only two days in the window actually have rows; the other 5 must
-        // be zero-filled in the returned bucket list.
         LocalDate today = LocalDate.now();
-        when(appointmentRepository.countActiveByDateInRange(eq(7L), eq(null), any(), any()))
+        when(appointmentRepository.countActiveByDateInRange(eq(7L), eq(null), eq(null), any(), any()))
                 .thenReturn(List.of(
                         new Object[]{today, 3L},
                         new Object[]{today.plusDays(2), 5L}
                 ));
 
-        when(appointmentRepository.countByStatusForDate(eq(7L), eq(null), any()))
+        when(appointmentRepository.countByStatusForDate(eq(7L), eq(null), eq(null), any()))
                 .thenReturn(List.of(
                         new Object[]{AppointmentStatus.CONFIRMED, 2L},
                         new Object[]{AppointmentStatus.COMPLETED, 1L}
@@ -95,10 +93,11 @@ class DashboardServiceImplTest {
         when(auditLogRepository.findRecentByScope(eq(7L), eq(null), anyCollection(), any(Pageable.class)))
                 .thenReturn(List.of(auditRow(100L, AuditEventType.APPOINTMENT_CREATED)));
 
-        DashboardSummaryResponse resp = service.summary();
+        DashboardSummaryResponse resp = service.summary(null, null);
 
         assertThat(resp.scope().companyWide()).isTrue();
         assertThat(resp.scope().clinicId()).isNull();
+        assertThat(resp.scope().doctorId()).isNull();
         assertThat(resp.totals().activePatients()).isEqualTo(42);
         assertThat(resp.totals().activeDoctors()).isEqualTo(4);
         assertThat(resp.totals().upcomingAppointments()).isEqualTo(15);
@@ -122,30 +121,83 @@ class DashboardServiceImplTest {
     void summary_nonOwnerIsClampedToOwnClinic() {
         authenticate(new AuthenticatedUser(
                 2L, "doc@x", 7L, 11L, Set.of("DOCTOR"), List.of()));
-        // Non-owner: resolver returns their clinic id.
         when(scopeResolver.resolveClinicScope(null)).thenReturn(11L);
 
         when(patientRepository.countByScope(7L, 11L)).thenReturn(8L);
         when(employeeRepository.countByScopeAndStatus(7L, 11L, EmployeeStatus.ACTIVE)).thenReturn(3L);
         when(employeeRepository.countByScopeAndTypeAndStatus(
                 7L, 11L, EmployeeType.DOCTOR, EmployeeStatus.ACTIVE)).thenReturn(2L);
-        when(appointmentRepository.countActiveInRange(eq(7L), eq(11L), any(), any())).thenReturn(4L);
-        when(appointmentRepository.countActiveByDateInRange(eq(7L), eq(11L), any(), any()))
+        when(appointmentRepository.countActiveInRange(eq(7L), eq(11L), eq(null), any(), any())).thenReturn(4L);
+        when(appointmentRepository.countActiveByDateInRange(eq(7L), eq(11L), eq(null), any(), any()))
                 .thenReturn(List.of());
-        when(appointmentRepository.countByStatusForDate(eq(7L), eq(11L), any()))
+        when(appointmentRepository.countByStatusForDate(eq(7L), eq(11L), eq(null), any()))
                 .thenReturn(List.of());
         when(auditLogRepository.findRecentByScope(eq(7L), eq(11L), anyCollection(), any(Pageable.class)))
                 .thenReturn(List.of());
 
-        DashboardSummaryResponse resp = service.summary();
+        DashboardSummaryResponse resp = service.summary(null, null);
 
         assertThat(resp.scope().companyWide()).isFalse();
         assertThat(resp.scope().clinicId()).isEqualTo(11L);
         assertThat(resp.totals().activePatients()).isEqualTo(8);
-        // Empty window still produces 7 zero-buckets (for dense charting FE-side).
         assertThat(resp.next7Days()).hasSize(7);
         assertThat(resp.next7Days()).allMatch(b -> b.count() == 0L);
         assertThat(resp.today().total()).isZero();
+    }
+
+    @Test
+    void summary_ownerDrillingDownToDoctor_passesDoctorIdToAppointmentQueries() {
+        // Owner drills to clinic 11, doctor 55 from the dashboard filter bar.
+        authenticate(new AuthenticatedUser(
+                1L, "owner@x", 7L, null, Set.of("CLINIC_OWNER"), List.of()));
+        when(scopeResolver.resolveClinicScope(11L)).thenReturn(11L);
+
+        when(patientRepository.countByScope(7L, 11L)).thenReturn(20L);
+        when(employeeRepository.countByScopeAndStatus(7L, 11L, EmployeeStatus.ACTIVE)).thenReturn(5L);
+        when(employeeRepository.countByScopeAndTypeAndStatus(
+                7L, 11L, EmployeeType.DOCTOR, EmployeeStatus.ACTIVE)).thenReturn(3L);
+        when(appointmentRepository.countActiveInRange(eq(7L), eq(11L), eq(55L), any(), any())).thenReturn(6L);
+        when(appointmentRepository.countActiveByDateInRange(eq(7L), eq(11L), eq(55L), any(), any()))
+                .thenReturn(List.of());
+        when(appointmentRepository.countByStatusForDate(eq(7L), eq(11L), eq(55L), any()))
+                .thenReturn(List.of());
+        when(auditLogRepository.findRecentByScope(eq(7L), eq(11L), anyCollection(), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        DashboardSummaryResponse resp = service.summary(11L, 55L);
+
+        assertThat(resp.scope().companyWide()).isFalse();
+        assertThat(resp.scope().clinicId()).isEqualTo(11L);
+        assertThat(resp.scope().doctorId()).isEqualTo(55L);
+        assertThat(resp.totals().upcomingAppointments()).isEqualTo(6);
+
+        // Patient / employee queries must NOT be doctor-filtered —
+        // they describe the clinic as a whole.
+        verify(patientRepository).countByScope(7L, 11L);
+        verify(employeeRepository).countByScopeAndStatus(7L, 11L, EmployeeStatus.ACTIVE);
+    }
+
+    @Test
+    void summary_doctorIdZeroIsTreatedAsNoFilter() {
+        // Frontend default placeholder of 0 must not reach the query —
+        // we'd otherwise hit a legitimate row with id=0 (never happens in
+        // practice, but keeps the contract clean).
+        authenticate(new AuthenticatedUser(
+                1L, "owner@x", 7L, null, Set.of("CLINIC_OWNER"), List.of()));
+        when(scopeResolver.resolveClinicScope(null)).thenReturn(null);
+
+        when(appointmentRepository.countActiveInRange(eq(7L), eq(null), eq(null), any(), any())).thenReturn(0L);
+        when(appointmentRepository.countActiveByDateInRange(eq(7L), eq(null), eq(null), any(), any()))
+                .thenReturn(List.of());
+        when(appointmentRepository.countByStatusForDate(eq(7L), eq(null), eq(null), any()))
+                .thenReturn(List.of());
+        when(auditLogRepository.findRecentByScope(eq(7L), eq(null), anyCollection(), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        DashboardSummaryResponse resp = service.summary(null, 0L);
+
+        assertThat(resp.scope().doctorId()).isNull();
+        assertThat(resp.scope().companyWide()).isTrue();
     }
 
     // ─────────────────────────────────────────────────────────────────────────

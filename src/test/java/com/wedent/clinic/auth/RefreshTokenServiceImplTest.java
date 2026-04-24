@@ -196,6 +196,92 @@ class RefreshTokenServiceImplTest {
     }
 
     @Test
+    void listSessions_returnsOnlyLiveOnes_newestFirst() throws InterruptedException {
+        User user = activeUser(50L);
+        service.issue(user, "10.0.0.1", "device-A");
+        Thread.sleep(5); // make issuedAt strictly monotonic for the ordering assertion
+        RefreshTokenService.Issued second = service.issue(user, "10.0.0.2", "device-B");
+        Thread.sleep(5);
+        service.issue(user, "10.0.0.3", "device-C");
+
+        // Revoke the middle one — it should drop out of the live list.
+        service.revoke(second.rawToken());
+
+        List<RefreshTokenService.SessionView> live = service.listSessions(50L);
+
+        assertThat(live).hasSize(2);
+        // Newest first.
+        assertThat(live.get(0).userAgent()).isEqualTo("device-C");
+        assertThat(live.get(1).userAgent()).isEqualTo("device-A");
+        // Hash form (sha256 = 64 hex chars) — never the raw token.
+        assertThat(live).allSatisfy(s -> assertThat(s.sessionId()).hasSize(64));
+    }
+
+    @Test
+    void listSessions_noSessions_returnsEmptyList() {
+        assertThat(service.listSessions(999L)).isEmpty();
+    }
+
+    @Test
+    void listSessions_sweepsDanglingSetMembersWhenRecordExpired() {
+        User user = activeUser(50L);
+        service.issue(user, "10.0.0.1", "ua");
+        // Simulate the per-token record TTL'ing out while the SET entry lingers.
+        String hash = sets.get("wedent:refresh:u:50").iterator().next();
+        kv.remove("wedent:refresh:t:" + hash);
+
+        List<RefreshTokenService.SessionView> live = service.listSessions(50L);
+
+        assertThat(live).isEmpty();
+        assertThat(sets.get("wedent:refresh:u:50")).doesNotContain(hash);
+    }
+
+    @Test
+    void revokeSession_validIdForCaller_marksRevoked_andDropsFromSet() {
+        User user = activeUser(50L);
+        service.issue(user, "10.0.0.1", "ua");
+        String hash = sets.get("wedent:refresh:u:50").iterator().next();
+
+        boolean revoked = service.revokeSession(50L, hash);
+
+        assertThat(revoked).isTrue();
+        assertThat(sets.get("wedent:refresh:u:50")).doesNotContain(hash);
+        assertThat(kv.get("wedent:refresh:t:" + hash)).contains("\"revokedAt\"");
+    }
+
+    @Test
+    void revokeSession_idBelongsToOtherUser_returnsFalse_noStateChange() {
+        User userA = activeUser(50L);
+        service.issue(userA, "10.0.0.1", "ua");
+        String hash = sets.get("wedent:refresh:u:50").iterator().next();
+        String payloadBefore = kv.get("wedent:refresh:t:" + hash);
+
+        // Caller pretends to be a different user trying to kill A's session.
+        boolean revoked = service.revokeSession(99L, hash);
+
+        assertThat(revoked).isFalse();
+        assertThat(kv.get("wedent:refresh:t:" + hash)).isEqualTo(payloadBefore);
+        assertThat(sets.get("wedent:refresh:u:50")).contains(hash);
+    }
+
+    @Test
+    void revokeSession_unknownOrBlankId_returnsFalse() {
+        assertThat(service.revokeSession(50L, null)).isFalse();
+        assertThat(service.revokeSession(50L, "")).isFalse();
+        assertThat(service.revokeSession(50L, "non-existent-hash")).isFalse();
+    }
+
+    @Test
+    void revokeSession_alreadyRevoked_returnsFalse_doesNotDoubleRevoke() {
+        User user = activeUser(50L);
+        service.issue(user, "10.0.0.1", "ua");
+        String hash = sets.get("wedent:refresh:u:50").iterator().next();
+
+        assertThat(service.revokeSession(50L, hash)).isTrue();
+        assertThat(service.revokeSession(50L, hash)).isFalse();
+    }
+
+    @Test
     void revokeAllForUser_marksAllActiveSessions_andDropsTheSet() {
         User user = activeUser(50L);
         service.issue(user, "10.0.0.1", "ua");

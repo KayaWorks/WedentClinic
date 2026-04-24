@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Dashboard")
@@ -20,10 +21,12 @@ public class DashboardController {
 
     private final DashboardService dashboardService;
 
-    @Operation(summary = "Landing-page summary: totals, today breakdown, next-7-days, recent activity")
+    @Operation(summary = "Landing-page summary with optional clinic + doctor drill-down")
     @PreAuthorize("hasAnyRole('CLINIC_OWNER','MANAGER','DOCTOR','STAFF')")
     @GetMapping("/summary")
-    public ResponseEntity<ApiResponse<DashboardSummaryResponse>> summary() {
-        return ResponseEntity.ok(ApiResponse.ok(dashboardService.summary()));
+    public ResponseEntity<ApiResponse<DashboardSummaryResponse>> summary(
+            @RequestParam(required = false) Long clinicId,
+            @RequestParam(required = false) Long doctorId) {
+        return ResponseEntity.ok(ApiResponse.ok(dashboardService.summary(clinicId, doctorId)));
     }
 }

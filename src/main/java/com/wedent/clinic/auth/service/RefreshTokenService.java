@@ -2,6 +2,9 @@ package com.wedent.clinic.auth.service;
 
 import com.wedent.clinic.user.entity.User;
 
+import java.time.Instant;
+import java.util.List;
+
 /**
  * Refresh-token lifecycle with Redis as the sole backing store.
  *
@@ -32,10 +35,41 @@ public interface RefreshTokenService {
     /** Revokes every active refresh token for a user.  Used by admin flows / password change. */
     int revokeAllForUser(Long userId);
 
+    /**
+     * Lists every <em>live</em> session for a user (i.e. not yet revoked,
+     * not yet expired). Driven by the per-user {@code refresh:u:{userId}}
+     * SET; cleans up dangling members whose underlying record has expired.
+     */
+    List<SessionView> listSessions(Long userId);
+
+    /**
+     * Revokes a single session belonging to {@code userId}, identified by
+     * the opaque {@code sessionId} surfaced by {@link #listSessions}.
+     *
+     * <p>Returns {@code true} when a live session was actually revoked,
+     * {@code false} when the session is unknown / already revoked / belongs
+     * to another user. Never throws on unknown ids — the caller decides
+     * whether to surface a 404 or treat it as idempotent.</p>
+     */
+    boolean revokeSession(Long userId, String sessionId);
+
     /** Refresh-token TTL in milliseconds, derived from config. */
     long expirationMillis();
 
     record Issued(String rawToken) {}
 
     record Rotated(String newRawToken, Long userId) {}
+
+    /**
+     * Public projection of a live refresh-token record. The {@code sessionId}
+     * is the SHA-256 hex of the raw refresh token — opaque, one-way, and
+     * therefore safe to surface to the FE for revoke calls.
+     */
+    record SessionView(
+            String sessionId,
+            Instant issuedAt,
+            Instant expiresAt,
+            String ipAddress,
+            String userAgent
+    ) {}
 }

@@ -21,7 +21,13 @@ public record DashboardSummaryResponse(
         Instant generatedAt
 ) {
 
-    public record Scope(Long companyId, Long clinicId, boolean companyWide) {}
+    /**
+     * {@code companyWide} stays true only when the caller is an owner AND
+     * neither a clinic nor a doctor filter was applied — i.e. the caller is
+     * seeing un-drilled-down company totals. Any filter (clinicId or doctorId)
+     * flips it to false so the UI labels tiles as a narrowed view.
+     */
+    public record Scope(Long companyId, Long clinicId, Long doctorId, boolean companyWide) {}
 
     public record Totals(
             long activePatients,

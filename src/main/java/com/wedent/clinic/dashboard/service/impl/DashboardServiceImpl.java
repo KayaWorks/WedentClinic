@@ -38,11 +38,17 @@ import java.util.Set;
  * stitches the payload. Intentionally kept as one coarse-grained method so
  * the frontend can fetch the landing page with a single round-trip.
  *
- * <p>Tenant scope: owners see company-wide counts (clinicId == null);
- * everyone else is clamped to their own clinic via
- * {@link TenantScopeResolver}. Passing {@code null} as the requested clinic
- * therefore collapses to "the caller's clinic" for non-owners — which is
- * exactly what we want for a shell landing page.</p>
+ * <p>Tenant scope resolution:
+ * <ul>
+ *   <li>{@code clinicId} — owners can narrow to any clinic in their company;
+ *       non-owners are clamped to their own clinic by
+ *       {@link TenantScopeResolver}.</li>
+ *   <li>{@code doctorId} — applied only to appointment-based tiles. A zero /
+ *       negative value is treated as "no filter" to tolerate UI default
+ *       {@code 0} placeholders without a 400.</li>
+ * </ul>
+ * Patient/employee totals intentionally ignore {@code doctorId}: those
+ * numbers describe the clinic as a whole, not one doctor's caseload.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -63,7 +69,10 @@ public class DashboardServiceImpl implements DashboardService {
             AuditEventType.APPOINTMENT_STATUS_CHANGED.name(),
             AuditEventType.APPOINTMENT_DELETED.name(),
             AuditEventType.USER_CREATED.name(),
-            AuditEventType.USER_ROLE_CHANGED.name()
+            AuditEventType.USER_ROLE_CHANGED.name(),
+            AuditEventType.CLINIC_CREATED.name(),
+            AuditEventType.CLINIC_UPDATED.name(),
+            AuditEventType.CLINIC_DELETED.name()
     );
 
     private final PatientRepository patientRepository;
@@ -74,32 +83,35 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     @Transactional(readOnly = true)
-    public DashboardSummaryResponse summary() {
+    public DashboardSummaryResponse summary(Long requestedClinicId, Long requestedDoctorId) {
         AuthenticatedUser caller = SecurityUtils.currentUser();
         Long companyId = caller.companyId();
-        // For owners the requested clinic is null → queries become company-wide.
-        // For clamped users this returns their own clinic id.
-        Long clinicId = tenantScopeResolver.resolveClinicScope(null);
+        Long clinicId = tenantScopeResolver.resolveClinicScope(requestedClinicId);
+        Long doctorId = normalizeDoctorId(requestedDoctorId);
 
         LocalDate today = LocalDate.now();
         LocalDate windowEnd = today.plusDays(NEXT_DAYS - 1L);
 
+        // Tile-scope totals (ignore doctor filter — they describe the clinic).
         long activePatients = patientRepository.countByScope(companyId, clinicId);
         long activeEmployees = employeeRepository.countByScopeAndStatus(
                 companyId, clinicId, EmployeeStatus.ACTIVE);
         long activeDoctors = employeeRepository.countByScopeAndTypeAndStatus(
                 companyId, clinicId, EmployeeType.DOCTOR, EmployeeStatus.ACTIVE);
+
+        // Appointment tiles honour the doctor filter.
         long upcoming = appointmentRepository.countActiveInRange(
-                companyId, clinicId, today, windowEnd);
-
+                companyId, clinicId, doctorId, today, windowEnd);
         List<DailyBucket> weekBuckets = buildWeekBuckets(
-                appointmentRepository.countActiveByDateInRange(companyId, clinicId, today, windowEnd),
+                appointmentRepository.countActiveByDateInRange(companyId, clinicId, doctorId, today, windowEnd),
                 today);
-
         TodayBreakdown todayBreakdown = buildTodayBreakdown(
-                appointmentRepository.countByStatusForDate(companyId, clinicId, today),
+                appointmentRepository.countByStatusForDate(companyId, clinicId, doctorId, today),
                 today);
 
+        // Recent activity stays at clinic scope — filtering audit rows by
+        // doctor would require probing JSONB detail columns and is too
+        // expensive for a landing-page query.
         List<RecentActivity> recent = auditLogRepository.findRecentByScope(
                 companyId, clinicId, DASHBOARD_EVENT_TYPES,
                 PageRequest.of(0, RECENT_ACTIVITY_LIMIT))
@@ -107,8 +119,10 @@ public class DashboardServiceImpl implements DashboardService {
                 .map(DashboardServiceImpl::toRecentActivity)
                 .toList();
 
+        boolean companyWide = clinicId == null && doctorId == null;
+
         return new DashboardSummaryResponse(
-                new Scope(companyId, clinicId, clinicId == null),
+                new Scope(companyId, clinicId, doctorId, companyWide),
                 new Totals(activePatients, activeEmployees, activeDoctors, upcoming),
                 todayBreakdown,
                 weekBuckets,
@@ -118,6 +132,11 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     // ─── helpers ────────────────────────────────────────────────────────────
+
+    /** Treat {@code null} / non-positive values uniformly as "no filter". */
+    private static Long normalizeDoctorId(Long doctorId) {
+        return (doctorId == null || doctorId <= 0) ? null : doctorId;
+    }
 
     /**
      * GROUP BY on appointmentDate returns only days that actually have rows;
