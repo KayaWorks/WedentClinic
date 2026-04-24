@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -73,6 +74,11 @@ public class TreatmentServiceImpl implements TreatmentService {
         }
         if (entity.getStatus() == null) {
             entity.setStatus(TreatmentStatus.PLANNED);
+        }
+        // If the FE seeds a treatment already in COMPLETED (back-dated
+        // entry), stamp completedAt now so payout aggregation picks it up.
+        if (entity.getStatus() == TreatmentStatus.COMPLETED && entity.getCompletedAt() == null) {
+            entity.setCompletedAt(Instant.now());
         }
 
         Treatment saved = repository.save(entity);
@@ -133,6 +139,15 @@ public class TreatmentServiceImpl implements TreatmentService {
             // Defensive: blank string would silently overwrite via the
             // mapper since IGNORE only kicks in for null. Keep TRY default.
             treatment.setCurrency(DEFAULT_CURRENCY);
+        }
+        // Status→COMPLETED transition stamps completedAt; going back to
+        // PLANNED/CANCELLED clears it so the treatment falls out of payouts.
+        if (statusBefore != TreatmentStatus.COMPLETED
+                && treatment.getStatus() == TreatmentStatus.COMPLETED) {
+            treatment.setCompletedAt(Instant.now());
+        } else if (statusBefore == TreatmentStatus.COMPLETED
+                && treatment.getStatus() != TreatmentStatus.COMPLETED) {
+            treatment.setCompletedAt(null);
         }
 
         Map<String, Object> diff = new LinkedHashMap<>();

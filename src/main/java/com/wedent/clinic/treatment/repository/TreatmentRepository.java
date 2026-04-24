@@ -30,20 +30,33 @@ public interface TreatmentRepository extends JpaRepository<Treatment, Long> {
     Page<Treatment> findByPatientIdAndCompanyId(Long patientId, Long companyId, Pageable pageable);
 
     /**
-     * Payout aggregation. Only completed treatments in the half-open
-     * {@code [from, to)} window count toward the doctor's gross — planned
-     * and cancelled rows stay out.
+     * Payout aggregation. Only completed, still-unlocked treatments in
+     * the half-open {@code [from, to)} window count toward gross. Keying
+     * off {@code completedAt} (not {@code performedAt}) lets billing
+     * happen on a different day than the chair work.
      */
     @Query("""
             SELECT t FROM Treatment t
             WHERE t.doctor.id = :doctorId
+              AND t.company.id = :companyId
               AND t.status = :status
-              AND t.performedAt >= :from
-              AND t.performedAt < :to
-            ORDER BY t.performedAt ASC
+              AND t.payoutLockedAt IS NULL
+              AND t.completedAt >= :from
+              AND t.completedAt < :to
+            ORDER BY t.completedAt ASC
             """)
-    List<Treatment> findCompletedForDoctorInRange(Long doctorId,
-                                                  TreatmentStatus status,
-                                                  Instant from,
-                                                  Instant to);
+    List<Treatment> findEligibleForPayout(Long doctorId,
+                                          Long companyId,
+                                          TreatmentStatus status,
+                                          Instant from,
+                                          Instant to);
+
+    /**
+     * Treatments that were consumed by a specific approved/paid payout
+     * period. Used by the payout detail endpoint to show "this is what
+     * we paid for". Patient is eagerly joined so the response mapper
+     * can render patient name without n+1 round-trips.
+     */
+    @EntityGraph(attributePaths = {"patient"})
+    List<Treatment> findByPayoutPeriodId(Long payoutPeriodId);
 }

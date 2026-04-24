@@ -47,5 +47,19 @@ public enum AuditEventType {
     TREATMENT_CREATED,
     TREATMENT_UPDATED,
     TREATMENT_STATUS_CHANGED,
-    TREATMENT_DELETED
+    TREATMENT_DELETED,
+
+    // --- Payout (hakediş) lifecycle ---
+    /** DRAFT row materialized for a doctor + date window. */
+    PAYOUT_DRAFT_CREATED,
+    /** DRAFT payout gross/net refreshed from current treatment state. */
+    PAYOUT_RECALCULATED,
+    /** DRAFT→APPROVED transition. Included treatments are locked. */
+    PAYOUT_APPROVED,
+    /** APPROVED→PAID transition. */
+    PAYOUT_MARKED_PAID,
+    /** DRAFT→CANCELLED (wrong draft, abandoned). */
+    PAYOUT_CANCELLED,
+    PAYOUT_DEDUCTION_ADDED,
+    PAYOUT_DEDUCTION_REMOVED
 }

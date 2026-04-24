@@ -5,6 +5,7 @@ import com.wedent.clinic.common.entity.BaseEntity;
 import com.wedent.clinic.company.entity.Company;
 import com.wedent.clinic.employee.entity.Employee;
 import com.wedent.clinic.patient.entity.Patient;
+import com.wedent.clinic.payout.entity.PayoutPeriod;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -76,6 +77,14 @@ public class Treatment extends BaseEntity {
     @Column(name = "performed_at", nullable = false)
     private Instant performedAt;
 
+    /**
+     * When the procedure was flagged {@link TreatmentStatus#COMPLETED}.
+     * This — not {@code performedAt} — is the key the payout window
+     * uses, because billing can lag the chair work.
+     */
+    @Column(name = "completed_at")
+    private Instant completedAt;
+
     @Column(name = "fee", nullable = false, precision = 12, scale = 2)
     private BigDecimal fee;
 
@@ -92,6 +101,14 @@ public class Treatment extends BaseEntity {
      */
     @Column(name = "payout_locked_at")
     private Instant payoutLockedAt;
+
+    /**
+     * Back-pointer to the payout period that consumed this treatment.
+     * Populated in the same transaction as {@link #payoutLockedAt}.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "payout_period_id")
+    private PayoutPeriod payoutPeriod;
 
     public boolean isPayoutLocked() {
         return payoutLockedAt != null;
