@@ -11,7 +11,9 @@ public record AppCorsProperties(
 
     private static final List<String> DEFAULT_ALLOWED_ORIGINS = List.of(
             "http://localhost:5173",
-            "http://localhost:3000"
+            "http://127.0.0.1:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000"
     );
 
     public List<String> allowedOriginsOrDefault() {

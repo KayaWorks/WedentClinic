@@ -40,7 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.security.jwt.access-token-expiration-minutes=60",
         "app.security.jwt.issuer=wedent-clinic-test",
         "app.security.public-paths[0]=/api/auth/**",
-        "app.cors.allowed-origins=http://localhost:5173,https://frontend.example"
+        "app.cors.allowed-origins=http://localhost:5173,http://127.0.0.1:5173,https://frontend.example"
 })
 class CorsSecurityConfigTest {
 
@@ -78,6 +78,17 @@ class CorsSecurityConfigTest {
                 .andExpect(header().string(ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"))
                 .andExpect(header().string(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"))
                 .andExpect(header().string(ACCESS_CONTROL_ALLOW_HEADERS, "Authorization, Content-Type, X-Request-Id"));
+    }
+
+    @Test
+    void preflightToLogin_allowsLocalhostIpOrigin() throws Exception {
+        mvc.perform(options("/api/auth/login")
+                        .header(ORIGIN, "http://127.0.0.1:5173")
+                        .header(ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                        .header(ACCESS_CONTROL_REQUEST_HEADERS, "Content-Type,X-Request-Id"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(ACCESS_CONTROL_ALLOW_ORIGIN, "http://127.0.0.1:5173"))
+                .andExpect(header().string(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"));
     }
 
     @Test
