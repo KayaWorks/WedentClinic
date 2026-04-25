@@ -63,6 +63,16 @@ Health: http://localhost:8080/actuator/health
 
 Failed logins are rate-limited per `(clientIp, email)` — 10 failures / 10 min window, reset on a successful login. The limiter is Redis-backed (atomic `INCR` + one-shot `EXPIRE` on the first miss of the window), so horizontal scale-out works out of the box.
 
+## CORS
+
+Browser clients must be explicitly allow-listed because credentials are enabled. Configure frontend origins with a comma-separated environment variable:
+
+```bash
+APP_CORS_ALLOWED_ORIGINS=https://YOUR-FRONTEND.up.railway.app,http://localhost:5173,http://localhost:3000
+```
+
+If the variable is not set, local Vite defaults are allowed: `http://localhost:5173` and `http://localhost:3000`.
+
 ## Concurrency-safe appointment booking
 
 Conflict detection uses a two-step guard inside a single transaction:
@@ -132,7 +142,7 @@ Tunables live under `app.redis`:
 ```yaml
 app:
   redis:
-    key-prefix: wedent:
+    key-prefix: "wedent:"
     default-ttl: 10m
 ```
 
