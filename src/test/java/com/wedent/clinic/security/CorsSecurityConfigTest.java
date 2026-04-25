@@ -17,6 +17,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS;
+import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS;
 import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS;
 import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD;
@@ -72,10 +73,11 @@ class CorsSecurityConfigTest {
         mvc.perform(options("/api/auth/login")
                         .header(ORIGIN, "http://localhost:5173")
                         .header(ACCESS_CONTROL_REQUEST_METHOD, "POST")
-                        .header(ACCESS_CONTROL_REQUEST_HEADERS, "Authorization,Content-Type"))
+                        .header(ACCESS_CONTROL_REQUEST_HEADERS, "Authorization,Content-Type,X-Request-Id"))
                 .andExpect(status().isOk())
                 .andExpect(header().string(ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"))
-                .andExpect(header().string(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"));
+                .andExpect(header().string(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"))
+                .andExpect(header().string(ACCESS_CONTROL_ALLOW_HEADERS, "Authorization, Content-Type, X-Request-Id"));
     }
 
     @Test
