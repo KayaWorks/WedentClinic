@@ -32,7 +32,7 @@ spring:
     redis:
       repositories:
         enabled: false
-      url: ${REDIS_URL}
+      url: ${redis://default:wypOdaqHxpgvnXMmARMhqwAvoGgLhoaa@hopper.proxy.rlwy.net:33110}
       timeout: 2s
       connect-timeout: 1s
       lettuce:
