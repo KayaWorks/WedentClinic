@@ -33,6 +33,8 @@ spring:
 
   data:
     redis:
+      repositories:
+        enabled: false
       url: ${REDIS_URL:redis://localhost:6379}
       timeout: 2s
       connect-timeout: 1s

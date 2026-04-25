@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/wedent}
+    url: ${DB_URL:jdbc:postgresql://interchange.proxy.rlwy.net:39479/railway}
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    password: ${DB_PASSWORD:pdQSyxuznPdchPguHuYbYhwvvdhCoeLO}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -15,7 +15,9 @@ spring:
     show-sql: false
   data:
     redis:
-      url: ${REDIS_URL:redis://localhost:6379}
+      repositories:
+        enabled: false
+      url: ${REDIS_PUBLIC_URL:${REDIS_URL:redis://localhost:6379}}
 
 logging:
   level:
