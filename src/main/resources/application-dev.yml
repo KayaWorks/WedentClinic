@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://nozomi.proxy.rlwy.net:24880/railway
+    url: jdbc:postgresql://interchange.proxy.rlwy.net:39479/railway
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:aMDUkKzwaLGusYUxQDkOFBJAkpcKKFce}
+    password: ${DB_PASSWORD:pdQSyxuznPdchPguHuYbYhwvvdhCoeLO}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10

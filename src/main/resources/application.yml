@@ -30,13 +30,10 @@ spring:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
+
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-      # Short timeouts: Redis should be on the same LAN; if it's not responding
-      # we want to surface that quickly rather than stall a login thread.
+      url: redis://default:wypOdaqHxpgvnXMmARMhqwAvoGgLhoaa@hopper.proxy.rlwy.net:33110
       timeout: 2s
       connect-timeout: 1s
       lettuce:
