@@ -35,7 +35,7 @@ public class RedisProfileGuard implements BeanFactoryPostProcessor, EnvironmentA
                 .collect(Collectors.toUnmodifiableSet());
         boolean strictProfile = activeProfiles.contains("railway") || activeProfiles.contains("prod");
 
-        String rawRedisUrl = environment.getProperty(REDIS_URL);
+        String rawRedisUrl = property(environment, REDIS_URL);
         if (strictProfile && !StringUtils.hasText(rawRedisUrl)) {
             throw new IllegalStateException("REDIS_URL is required when running with the railway or prod profile");
         }
@@ -54,10 +54,14 @@ public class RedisProfileGuard implements BeanFactoryPostProcessor, EnvironmentA
     }
 
     private static String redisUrl(Environment environment) {
+        return property(environment, "spring.data.redis.url");
+    }
+
+    private static String property(Environment environment, String name) {
         try {
-            return environment.getProperty("spring.data.redis.url");
+            return environment.getProperty(name);
         } catch (IllegalArgumentException ex) {
-            return null;
+            return "${" + name + "}";
         }
     }
 

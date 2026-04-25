@@ -163,7 +163,7 @@ Integration tests require a Docker socket (Testcontainers). Containers start onc
 
 ## Redis / cache
 
-Redis is a hard dependency — the app fails to start without it. Configure via `REDIS_URL` (see `application.yml`). All keys are namespaced with a configurable prefix (default `wedent:`).
+Redis is a hard dependency. The `dev` profile defaults to `redis://localhost:6379`; `prod` and `railway` require `REDIS_URL` to be set. All keys are namespaced with a configurable prefix (default `wedent:`).
 
 | Key pattern                         | Purpose                                                                 |
 |-------------------------------------|-------------------------------------------------------------------------|
