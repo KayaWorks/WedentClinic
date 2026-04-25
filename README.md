@@ -69,7 +69,7 @@ Failed logins are rate-limited per `(clientIp, email)` — 10 failures / 10 min 
 Browser clients must be explicitly allow-listed because credentials are enabled. Configure frontend origins with a comma-separated environment variable:
 
 ```bash
-CORS_ALLOWED_ORIGINS=<FRONTEND_PRODUCTION_URL>,http://localhost:5173,http://localhost:3000
+CORS_ALLOWED_ORIGINS=https://clinicflow-dashboard-production.up.railway.app,http://localhost:5173,http://localhost:3000
 ```
 
 `APP_CORS_ALLOWED_ORIGINS` is also supported for compatibility. If neither variable is set, only local Vite defaults are allowed: `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:3000`, and `http://127.0.0.1:3000`.
@@ -93,7 +93,7 @@ DB_PASSWORD=<provided Railway PostgreSQL password>
 REDIS_URL=<RAILWAY_INTERNAL_REDIS_URL>
 REDIS_PUBLIC_URL=<RAILWAY_PUBLIC_REDIS_URL>
 JWT_SECRET=replace-with-a-strong-256-bit-or-larger-secret
-APP_CORS_ALLOWED_ORIGINS=<FRONTEND_PRODUCTION_URL>,http://localhost:5173,http://localhost:3000
+APP_CORS_ALLOWED_ORIGINS=https://clinicflow-dashboard-production.up.railway.app,http://localhost:5173,http://localhost:3000
 ```
 
 The backend reads `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, and `REDIS_URL`. `REDIS_PUBLIC_URL` is useful only for connections from outside Railway and is not used by the application config. If Railway logs show the active profile as `dev`, remove any Railway variable that sets `SPRING_PROFILES_ACTIVE=dev` and redeploy with `SPRING_PROFILES_ACTIVE=railway`.

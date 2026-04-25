@@ -15,9 +15,9 @@ import java.util.stream.Collectors;
 @Component
 public class DatasourceProfileGuard implements BeanFactoryPostProcessor, EnvironmentAware {
 
-    private static final String DB_URL = "DB_URL";
-    private static final String DB_USERNAME = "DB_USERNAME";
-    private static final String DB_PASSWORD = "DB_PASSWORD";
+    private static final String DATASOURCE_URL = "spring.datasource.url";
+    private static final String DATASOURCE_USERNAME = "spring.datasource.username";
+    private static final String DATASOURCE_PASSWORD = "spring.datasource.password";
     private static final Set<String> RAILWAY_ENV_MARKERS = Set.of(
             "RAILWAY_ENVIRONMENT",
             "RAILWAY_ENVIRONMENT_NAME",
@@ -49,9 +49,9 @@ public class DatasourceProfileGuard implements BeanFactoryPostProcessor, Environ
         }
 
         if (activeProfiles.contains("railway") || activeProfiles.contains("prod")) {
-            requireRealValue(environment, DB_URL);
-            requireRealValue(environment, DB_USERNAME);
-            requireRealValue(environment, DB_PASSWORD);
+            requireRealValue(environment, DATASOURCE_URL);
+            requireRealValue(environment, DATASOURCE_USERNAME);
+            requireRealValue(environment, DATASOURCE_PASSWORD);
         }
     }
 

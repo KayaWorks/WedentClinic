@@ -55,11 +55,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.security.jwt.access-token-expiration-minutes=60",
         "app.security.jwt.issuer=wedent-clinic-test",
         "app.security.public-paths[0]=/api/auth/**",
-        "app.cors.allowed-origins=https://frontend.example,http://localhost:5173,http://127.0.0.1:5173"
+        "app.cors.allowed-origins=https://clinicflow-dashboard-production.up.railway.app,http://localhost:5173,http://127.0.0.1:5173"
 })
 class CorsSecurityConfigTest {
 
-    private static final String FRONTEND_ORIGIN = "https://frontend.example";
+    private static final String FRONTEND_ORIGIN = "https://clinicflow-dashboard-production.up.railway.app";
 
     @Autowired
     private MockMvc mvc;

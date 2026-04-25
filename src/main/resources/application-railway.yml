@@ -87,6 +87,6 @@ logging:
 
 app:
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:${APP_CORS_ALLOWED_ORIGINS:https://clinicflow-dashboard-production.up.railway.app,http://localhost:5173,http://localhost:3000}}
   bootstrap:
     enabled: false
