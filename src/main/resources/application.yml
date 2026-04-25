@@ -33,7 +33,7 @@ spring:
 
   data:
     redis:
-      url: redis://default:wypOdaqHxpgvnXMmARMhqwAvoGgLhoaa@hopper.proxy.rlwy.net:33110
+      url: ${REDIS_URL:redis://localhost:6379}
       timeout: 2s
       connect-timeout: 1s
       lettuce:
@@ -87,7 +87,7 @@ springdoc:
 
 app:
   cors:
-    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:https://clinicflow-dashboard-production.up.railway.app,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:${APP_CORS_ALLOWED_ORIGINS:https://clinicflow-dashboard-production.up.railway.app,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000}}
   security:
     jwt:
       secret: ${JWT_SECRET:dev-secret-please-override-in-production-environment-256bits-minimum}

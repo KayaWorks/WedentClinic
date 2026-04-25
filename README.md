@@ -69,7 +69,7 @@ Failed logins are rate-limited per `(clientIp, email)` — 10 failures / 10 min 
 Browser clients must be explicitly allow-listed because credentials are enabled. Configure frontend origins with a comma-separated environment variable:
 
 ```bash
-APP_CORS_ALLOWED_ORIGINS=https://clinicflow-dashboard-production.up.railway.app,http://localhost:5173,http://localhost:3000
+CORS_ALLOWED_ORIGINS=https://clinicflow-dashboard-production.up.railway.app,http://localhost:5173,http://localhost:3000
 ```
 
 If the variable is not set, the Railway frontend plus local Vite defaults are allowed: `https://clinicflow-dashboard-production.up.railway.app`, `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:3000`, and `http://127.0.0.1:3000`.
@@ -92,7 +92,7 @@ DB_USERNAME=YOUR_DATABASE_USER
 DB_PASSWORD=YOUR_DATABASE_PASSWORD
 REDIS_URL=redis://default:YOUR_REDIS_PASSWORD@YOUR_REDIS_HOST:PORT
 JWT_SECRET=replace-with-a-strong-256-bit-or-larger-secret
-APP_CORS_ALLOWED_ORIGINS=https://clinicflow-dashboard-production.up.railway.app,http://localhost:5173,http://localhost:3000
+CORS_ALLOWED_ORIGINS=https://clinicflow-dashboard-production.up.railway.app,http://localhost:5173,http://localhost:3000
 ```
 
 If the service still hits Railway memory limits, raise only the heap cap first:
@@ -157,7 +157,7 @@ Integration tests require a Docker socket (Testcontainers). Containers start onc
 
 ## Redis / cache
 
-Redis is a hard dependency — the app fails to start without it. Configure via `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` (see `application.yml`). All keys are namespaced with a configurable prefix (default `wedent:`).
+Redis is a hard dependency — the app fails to start without it. Configure via `REDIS_URL` (see `application.yml`). All keys are namespaced with a configurable prefix (default `wedent:`).
 
 | Key pattern                         | Purpose                                                                 |
 |-------------------------------------|-------------------------------------------------------------------------|
