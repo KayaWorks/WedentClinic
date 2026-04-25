@@ -38,11 +38,7 @@ Set via `SPRING_PROFILES_ACTIVE`.
 # 1. Postgres up (any supported version >= 13)
 createdb wedent
 
-# 2. Redis up locally (required for login, refresh tokens and rate limits)
-# Default dev URL is redis://localhost:6379.
-# Do not use redis.railway.internal outside Railway.
-
-# 3. Run with dev profile (default)
+# 2. Run with dev profile (default)
 ./mvnw spring-boot:run
 # or explicitly:
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
@@ -94,12 +90,13 @@ JAVA_OPTS=-Xms128m -Xmx384m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m -XX:Reser
 DB_URL=jdbc:postgresql://YOUR-POSTGRES-HOST:PORT/YOUR_DATABASE
 DB_USERNAME=YOUR_DATABASE_USER
 DB_PASSWORD=YOUR_DATABASE_PASSWORD
-REDIS_URL=<RAILWAY_REDIS_PUBLIC_OR_PRIVATE_URL>
+REDIS_URL=<RAILWAY_INTERNAL_REDIS_URL>
+REDIS_PUBLIC_URL=<RAILWAY_PUBLIC_REDIS_URL>
 JWT_SECRET=replace-with-a-strong-256-bit-or-larger-secret
-CORS_ALLOWED_ORIGINS=<FRONTEND_PRODUCTION_URL>,http://localhost:5173,http://localhost:3000
+APP_CORS_ALLOWED_ORIGINS=<FRONTEND_PRODUCTION_URL>,http://localhost:5173,http://localhost:3000
 ```
 
-`redis.railway.internal` works only inside Railway's private network. Do not use it from a local shell; local dev should use a reachable Redis such as `redis://localhost:6379`.
+The backend reads `REDIS_URL`. `REDIS_PUBLIC_URL` is useful only for connections from outside Railway and is not used by the application config.
 
 If the service still hits Railway memory limits, raise only the heap cap first:
 
@@ -163,7 +160,7 @@ Integration tests require a Docker socket (Testcontainers). Containers start onc
 
 ## Redis / cache
 
-Redis is a hard dependency. The `dev` profile defaults to `redis://localhost:6379`; `prod` and `railway` require `REDIS_URL` to be set. All keys are namespaced with a configurable prefix (default `wedent:`).
+Redis is a hard dependency. The `prod` and `railway` profiles require `REDIS_URL` to be set. All keys are namespaced with a configurable prefix (default `wedent:`).
 
 | Key pattern                         | Purpose                                                                 |
 |-------------------------------------|-------------------------------------------------------------------------|

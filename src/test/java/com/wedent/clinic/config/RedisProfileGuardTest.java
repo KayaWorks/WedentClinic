@@ -15,7 +15,7 @@ class RedisProfileGuardTest {
 
         assertThatThrownBy(() -> RedisProfileGuard.validate(environment))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("REDIS_URL is required");
+                .hasMessageContaining("REDIS_URL is required for Railway profile");
     }
 
     @Test
@@ -32,12 +32,12 @@ class RedisProfileGuardTest {
     @Test
     void devProfile_rejectsRailwayPrivateRedisHost() {
         MockEnvironment environment = new MockEnvironment()
-                .withProperty("spring.data.redis.url", "redis://default:secret@redis.railway.internal:6379");
+                .withProperty("spring.data.redis.url", "redis://private.railway.internal:6379");
         environment.setActiveProfiles("dev");
 
         assertThatThrownBy(() -> RedisProfileGuard.validate(environment))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("redis.railway.internal works only inside Railway");
+                .hasMessageContaining("Railway private Redis hosts work only inside Railway");
     }
 
     @Test

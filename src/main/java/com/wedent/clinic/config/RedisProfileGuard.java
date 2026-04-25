@@ -37,7 +37,9 @@ public class RedisProfileGuard implements BeanFactoryPostProcessor, EnvironmentA
 
         String rawRedisUrl = property(environment, REDIS_URL);
         if (strictProfile && !StringUtils.hasText(rawRedisUrl)) {
-            throw new IllegalStateException("REDIS_URL is required when running with the railway or prod profile");
+            throw new IllegalStateException(activeProfiles.contains("railway")
+                    ? "REDIS_URL is required for Railway profile"
+                    : "REDIS_URL is required for prod profile");
         }
         if (strictProfile && looksUnresolved(rawRedisUrl)) {
             throw new IllegalStateException("REDIS_URL must be set to a real Redis URL, not a placeholder");
@@ -48,7 +50,7 @@ public class RedisProfileGuard implements BeanFactoryPostProcessor, EnvironmentA
             String host = host(configuredRedisUrl);
             if (host != null && host.endsWith(".railway.internal")) {
                 throw new IllegalStateException(
-                        "redis.railway.internal works only inside Railway. For local dev, set REDIS_URL=redis://localhost:6379 or unset REDIS_URL.");
+                        "Railway private Redis hosts work only inside Railway. Remove the Railway REDIS_URL from non-Railway profiles.");
             }
         }
     }
