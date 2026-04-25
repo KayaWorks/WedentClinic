@@ -6,6 +6,8 @@ import jakarta.persistence.OptimisticLockException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.data.redis.RedisSystemException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -64,6 +66,17 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
         return ResponseEntity.status(ErrorCode.DUPLICATE_RESOURCE.getHttpStatus()).body(body);
+    }
+
+    @ExceptionHandler({RedisConnectionFailureException.class, RedisSystemException.class})
+    public ResponseEntity<ErrorResponse> handleRedisUnavailable(Exception ex, HttpServletRequest request) {
+        log.error("Redis unavailable while handling {}", request.getRequestURI(), ex);
+        ErrorResponse body = ErrorResponse.of(
+                ErrorCode.SERVICE_UNAVAILABLE.getCode(),
+                "Session service temporarily unavailable",
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(ErrorCode.SERVICE_UNAVAILABLE.getHttpStatus()).body(body);
     }
 
     @ExceptionHandler({BadCredentialsException.class, AuthenticationException.class})

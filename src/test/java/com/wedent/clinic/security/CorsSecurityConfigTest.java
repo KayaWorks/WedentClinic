@@ -5,6 +5,7 @@ import com.wedent.clinic.auth.dto.LoginRequest;
 import com.wedent.clinic.auth.dto.LoginResponse;
 import com.wedent.clinic.auth.service.AuthService;
 import com.wedent.clinic.common.audit.AuditEventPublisher;
+import com.wedent.clinic.common.exception.GlobalExceptionHandler;
 import com.wedent.clinic.security.blacklist.AccessTokenBlacklist;
 import com.wedent.clinic.security.ratelimit.LoginRateLimiter;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.test.context.ActiveProfiles;
@@ -45,18 +47,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         SecurityConfig.class,
         JwtAuthenticationFilter.class,
         RestAuthenticationEntryPoint.class,
-        RestAccessDeniedHandler.class
+        RestAccessDeniedHandler.class,
+        GlobalExceptionHandler.class
 })
 @TestPropertySource(properties = {
         "app.security.jwt.secret=test-secret-test-secret-test-secret-test-secret-1234567890",
         "app.security.jwt.access-token-expiration-minutes=60",
         "app.security.jwt.issuer=wedent-clinic-test",
         "app.security.public-paths[0]=/api/auth/**",
-        "app.cors.allowed-origins=https://clinicflow-dashboard-production.up.railway.app,http://localhost:5173,http://127.0.0.1:5173,https://frontend.example"
+        "app.cors.allowed-origins=https://frontend.example,http://localhost:5173,http://127.0.0.1:5173"
 })
 class CorsSecurityConfigTest {
 
-    private static final String FRONTEND_ORIGIN = "https://clinicflow-dashboard-production.up.railway.app";
+    private static final String FRONTEND_ORIGIN = "https://frontend.example";
 
     @Autowired
     private MockMvc mvc;
@@ -158,5 +161,29 @@ class CorsSecurityConfigTest {
         mvc.perform(get("/api/clinics")
                         .header(ORIGIN, FRONTEND_ORIGIN))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void postToLogin_whenRedisUnavailableReturnsStructuredJsonError() throws Exception {
+        when(loginRateLimiter.isBlocked(anyString())).thenReturn(false);
+        when(authService.login(any(LoginRequest.class), anyString(), any()))
+                .thenThrow(new RedisConnectionFailureException("Connection refused"));
+
+        mvc.perform(post("/api/auth/login")
+                        .header(ORIGIN, FRONTEND_ORIGIN)
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "owner@wedent.local",
+                                  "password": "ChangeMe!123"
+                                }
+                                """))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(header().string(ACCESS_CONTROL_ALLOW_ORIGIN, FRONTEND_ORIGIN))
+                .andExpect(content().contentTypeCompatibleWith(APPLICATION_JSON))
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("SERVICE_UNAVAILABLE")))
+                .andExpect(jsonPath("$.message", is("Session service temporarily unavailable")));
     }
 }

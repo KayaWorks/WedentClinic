@@ -20,6 +20,9 @@ spring:
         jdbc:
           lob:
             non_contextual_creation: true
+  data:
+    redis:
+      url: ${REDIS_URL}
   # Prod runs behind a proxy — never serve the actuator on the business port
   # implicitly; the ops team wires the management port through the infra.
 

@@ -38,7 +38,11 @@ Set via `SPRING_PROFILES_ACTIVE`.
 # 1. Postgres up (any supported version >= 13)
 createdb wedent
 
-# 2. Run with dev profile (default)
+# 2. Redis up locally (required for login, refresh tokens and rate limits)
+# Default dev URL is redis://localhost:6379.
+# Do not use redis.railway.internal outside Railway.
+
+# 3. Run with dev profile (default)
 ./mvnw spring-boot:run
 # or explicitly:
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
@@ -69,10 +73,10 @@ Failed logins are rate-limited per `(clientIp, email)` — 10 failures / 10 min 
 Browser clients must be explicitly allow-listed because credentials are enabled. Configure frontend origins with a comma-separated environment variable:
 
 ```bash
-CORS_ALLOWED_ORIGINS=https://clinicflow-dashboard-production.up.railway.app,http://localhost:5173,http://localhost:3000
+CORS_ALLOWED_ORIGINS=<FRONTEND_PRODUCTION_URL>,http://localhost:5173,http://localhost:3000
 ```
 
-If the variable is not set, the Railway frontend plus local Vite defaults are allowed: `https://clinicflow-dashboard-production.up.railway.app`, `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:3000`, and `http://127.0.0.1:3000`.
+`APP_CORS_ALLOWED_ORIGINS` is also supported for compatibility. If neither variable is set, only local Vite defaults are allowed: `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:3000`, and `http://127.0.0.1:3000`.
 
 ## Railway deployment
 
@@ -90,10 +94,12 @@ JAVA_OPTS=-Xms128m -Xmx384m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m -XX:Reser
 DB_URL=jdbc:postgresql://YOUR-POSTGRES-HOST:PORT/YOUR_DATABASE
 DB_USERNAME=YOUR_DATABASE_USER
 DB_PASSWORD=YOUR_DATABASE_PASSWORD
-REDIS_URL=redis://default:YOUR_REDIS_PASSWORD@YOUR_REDIS_HOST:PORT
+REDIS_URL=<RAILWAY_REDIS_PUBLIC_OR_PRIVATE_URL>
 JWT_SECRET=replace-with-a-strong-256-bit-or-larger-secret
-CORS_ALLOWED_ORIGINS=https://clinicflow-dashboard-production.up.railway.app,http://localhost:5173,http://localhost:3000
+CORS_ALLOWED_ORIGINS=<FRONTEND_PRODUCTION_URL>,http://localhost:5173,http://localhost:3000
 ```
+
+`redis.railway.internal` works only inside Railway's private network. Do not use it from a local shell; local dev should use a reachable Redis such as `redis://localhost:6379`.
 
 If the service still hits Railway memory limits, raise only the heap cap first:
 
