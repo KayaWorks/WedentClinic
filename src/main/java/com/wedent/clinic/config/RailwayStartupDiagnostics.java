@@ -28,7 +28,7 @@ public class RailwayStartupDiagnostics implements ApplicationRunner {
         log.info("Railway runtime profiles={}", String.join(",", environment.getActiveProfiles()));
         log.info("Railway database target host={} port={} database={}",
                 databaseTarget.host(), databaseTarget.port(), databaseTarget.database());
-        log.info("Railway Redis URL configured={}", StringUtils.hasText(environment.getProperty("REDIS_URL")));
+        log.info("Railway Redis URL configured={}", StringUtils.hasText(environment.getProperty("spring.data.redis.url")));
         log.info("Railway CORS allowed origins count={}", corsOriginCount(environment.getProperty("app.cors.allowed-origins")));
     }
 

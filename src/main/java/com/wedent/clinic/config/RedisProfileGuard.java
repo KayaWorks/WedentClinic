@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 @Component
 public class RedisProfileGuard implements BeanFactoryPostProcessor, EnvironmentAware {
 
-    private static final String REDIS_URL = "REDIS_URL";
+    private static final String REDIS_URL_PROPERTY = "spring.data.redis.url";
 
     private Environment environment;
 
@@ -35,18 +35,17 @@ public class RedisProfileGuard implements BeanFactoryPostProcessor, EnvironmentA
                 .collect(Collectors.toUnmodifiableSet());
         boolean strictProfile = activeProfiles.contains("railway") || activeProfiles.contains("prod");
 
-        String rawRedisUrl = property(environment, REDIS_URL);
-        if (strictProfile && !StringUtils.hasText(rawRedisUrl)) {
+        String configuredRedisUrl = redisUrl(environment);
+        if (strictProfile && !StringUtils.hasText(configuredRedisUrl)) {
             throw new IllegalStateException(activeProfiles.contains("railway")
-                    ? "REDIS_URL is required for Railway profile"
-                    : "REDIS_URL is required for prod profile");
+                    ? "REDIS_URL or REDIS_PUBLIC_URL is required for Railway profile"
+                    : "spring.data.redis.url is required for prod profile");
         }
-        if (strictProfile && looksUnresolved(rawRedisUrl)) {
-            throw new IllegalStateException("REDIS_URL must be set to a real Redis URL, not a placeholder");
+        if (strictProfile && looksUnresolved(configuredRedisUrl)) {
+            throw new IllegalStateException("spring.data.redis.url must be set to a real Redis URL, not a placeholder");
         }
 
         if (activeProfiles.contains("dev")) {
-            String configuredRedisUrl = redisUrl(environment);
             String host = host(configuredRedisUrl);
             if (host != null && host.endsWith(".railway.internal")) {
                 throw new IllegalStateException(
@@ -56,7 +55,7 @@ public class RedisProfileGuard implements BeanFactoryPostProcessor, EnvironmentA
     }
 
     private static String redisUrl(Environment environment) {
-        return property(environment, "spring.data.redis.url");
+        return property(environment, REDIS_URL_PROPERTY);
     }
 
     private static String property(Environment environment, String name) {

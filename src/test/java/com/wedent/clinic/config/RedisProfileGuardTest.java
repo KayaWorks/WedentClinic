@@ -15,18 +15,28 @@ class RedisProfileGuardTest {
 
         assertThatThrownBy(() -> RedisProfileGuard.validate(environment))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("REDIS_URL is required for Railway profile");
+                .hasMessageContaining("REDIS_URL or REDIS_PUBLIC_URL is required for Railway profile");
     }
 
     @Test
     void prodProfile_rejectsPlaceholderRedisUrl() {
         MockEnvironment environment = new MockEnvironment()
-                .withProperty("REDIS_URL", "${REDIS_URL}");
+                .withProperty("spring.data.redis.url", "${REDIS_URL}");
         environment.setActiveProfiles("prod");
 
         assertThatThrownBy(() -> RedisProfileGuard.validate(environment))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("not a placeholder");
+    }
+
+    @Test
+    void railwayProfile_allowsResolvedRedisUrl() {
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("spring.data.redis.url", "redis://public.redis.example:12345");
+        environment.setActiveProfiles("railway");
+
+        assertThatCode(() -> RedisProfileGuard.validate(environment))
+                .doesNotThrowAnyException();
     }
 
     @Test
