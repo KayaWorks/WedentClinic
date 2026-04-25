@@ -17,7 +17,7 @@ spring:
     redis:
       repositories:
         enabled: false
-      url: ${REDIS_PUBLIC_URL:redis://default:wypOdaqHxpgvnXMmARMhqwAvoGgLhoaa@hopper.proxy.rlwy.net:33110${REDIS_URL:redis://default:wypOdaqHxpgvnXMmARMhqwAvoGgLhoaa@redis.railway.internal:6379}}
+      url: ${REDIS_PUBLIC_URL:${REDIS_URL:redis://localhost:6379}}
 
 logging:
   level:

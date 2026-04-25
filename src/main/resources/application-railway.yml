@@ -34,7 +34,7 @@ spring:
     redis:
       repositories:
         enabled: false
-      url: ${REDIS_URL:redis://default:wypOdaqHxpgvnXMmARMhqwAvoGgLhoaa@redis.railway.internal:6379${REDIS_PUBLIC_URL:redis://default:wypOdaqHxpgvnXMmARMhqwAvoGgLhoaa@hopper.proxy.rlwy.net:33110}}
+      url: ${REDIS_URL:${REDIS_PUBLIC_URL:}}
       timeout: 2s
       connect-timeout: 1s
       lettuce:

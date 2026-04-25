@@ -92,11 +92,16 @@ DB_USERNAME=postgres
 DB_PASSWORD=<provided Railway PostgreSQL password>
 REDIS_URL=<RAILWAY_INTERNAL_REDIS_URL>
 REDIS_PUBLIC_URL=<RAILWAY_PUBLIC_REDIS_URL>
+REDISHOST=<RAILWAY_REDIS_INTERNAL_HOST>
+REDISPORT=6379
+REDISUSER=default
+REDISPASSWORD=<RAILWAY_REDIS_PASSWORD>
+REDIS_PASSWORD=<RAILWAY_REDIS_PASSWORD>
 JWT_SECRET=replace-with-a-strong-256-bit-or-larger-secret
 APP_CORS_ALLOWED_ORIGINS=https://clinicflow-dashboard-production.up.railway.app,http://localhost:5173,http://localhost:3000
 ```
 
-The backend reads `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, and `REDIS_URL`. If `REDIS_URL` is not present, the `railway` profile falls back to `REDIS_PUBLIC_URL`. Prefer `REDIS_URL` for Railway-to-Railway private networking and use `REDIS_PUBLIC_URL` only as a fallback. If Railway logs show the active profile as `dev`, remove any Railway variable that sets `SPRING_PROFILES_ACTIVE=dev` and redeploy with `SPRING_PROFILES_ACTIVE=railway`.
+The backend reads `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, and Redis config in this order: `REDIS_URL`, `REDIS_PUBLIC_URL`, then Railway split variables (`REDISHOST`, `REDISPORT`, `REDISUSER`, `REDISPASSWORD`). Prefer `REDIS_URL` for Railway-to-Railway private networking and use `REDIS_PUBLIC_URL` only as a fallback. If Railway logs show the active profile as `dev`, remove any Railway variable that sets `SPRING_PROFILES_ACTIVE=dev` and redeploy with `SPRING_PROFILES_ACTIVE=railway`.
 
 If the service still hits Railway memory limits, raise only the heap cap first:
 
@@ -160,7 +165,7 @@ Integration tests require a Docker socket (Testcontainers). Containers start onc
 
 ## Redis / cache
 
-Redis is a hard dependency. The `prod` profile requires `spring.data.redis.url`; the `railway` profile requires `REDIS_URL` or `REDIS_PUBLIC_URL`. All keys are namespaced with a configurable prefix (default `wedent:`).
+Redis is a hard dependency. The `prod` profile requires `spring.data.redis.url`; the `railway` profile requires `REDIS_URL`, `REDIS_PUBLIC_URL`, or Railway split Redis variables. All keys are namespaced with a configurable prefix (default `wedent:`).
 
 | Key pattern                         | Purpose                                                                 |
 |-------------------------------------|-------------------------------------------------------------------------|

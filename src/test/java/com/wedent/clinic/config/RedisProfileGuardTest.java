@@ -15,7 +15,7 @@ class RedisProfileGuardTest {
 
         assertThatThrownBy(() -> RedisProfileGuard.validate(environment))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("REDIS_URL or REDIS_PUBLIC_URL is required for Railway profile");
+                .hasMessageContaining("Railway split Redis variables are required");
     }
 
     @Test
@@ -37,6 +37,28 @@ class RedisProfileGuardTest {
 
         assertThatCode(() -> RedisProfileGuard.validate(environment))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void railwayProfile_rejectsEmptyRedisHost() {
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("spring.data.redis.url", "redis://");
+        environment.setActiveProfiles("railway");
+
+        assertThatThrownBy(() -> RedisProfileGuard.validate(environment))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("must include a Redis host");
+    }
+
+    @Test
+    void railwayProfile_rejectsLocalhostRedisUrl() {
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("spring.data.redis.url", "redis://localhost:6379");
+        environment.setActiveProfiles("railway");
+
+        assertThatThrownBy(() -> RedisProfileGuard.validate(environment))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("must not point to localhost");
     }
 
     @Test

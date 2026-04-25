@@ -38,16 +38,22 @@ public class RedisProfileGuard implements BeanFactoryPostProcessor, EnvironmentA
         String configuredRedisUrl = redisUrl(environment);
         if (strictProfile && !StringUtils.hasText(configuredRedisUrl)) {
             throw new IllegalStateException(activeProfiles.contains("railway")
-                    ? "REDIS_URL or REDIS_PUBLIC_URL is required for Railway profile"
+                    ? "REDIS_URL, REDIS_PUBLIC_URL, or Railway split Redis variables are required for Railway profile"
                     : "spring.data.redis.url is required for prod profile");
         }
         if (strictProfile && looksUnresolved(configuredRedisUrl)) {
             throw new IllegalStateException("spring.data.redis.url must be set to a real Redis URL, not a placeholder");
         }
+        String configuredHost = host(configuredRedisUrl);
+        if (strictProfile && !StringUtils.hasText(configuredHost)) {
+            throw new IllegalStateException("spring.data.redis.url must include a Redis host");
+        }
+        if (strictProfile && isLocalhost(configuredHost)) {
+            throw new IllegalStateException("spring.data.redis.url must not point to localhost for railway/prod profiles");
+        }
 
         if (activeProfiles.contains("dev")) {
-            String host = host(configuredRedisUrl);
-            if (host != null && host.endsWith(".railway.internal")) {
+            if (configuredHost != null && configuredHost.endsWith(".railway.internal")) {
                 throw new IllegalStateException(
                         "Railway private Redis hosts work only inside Railway. Remove the Railway REDIS_URL from non-Railway profiles.");
             }
@@ -79,5 +85,9 @@ public class RedisProfileGuard implements BeanFactoryPostProcessor, EnvironmentA
         } catch (IllegalArgumentException ex) {
             return null;
         }
+    }
+
+    private static boolean isLocalhost(String host) {
+        return "localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host);
     }
 }
