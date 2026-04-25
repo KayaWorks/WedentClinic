@@ -16,7 +16,6 @@ import com.wedent.clinic.common.exception.InvalidCredentialsException;
 import com.wedent.clinic.security.AuthenticatedUser;
 import com.wedent.clinic.security.JwtTokenProvider;
 import com.wedent.clinic.security.SecurityUtils;
-import com.wedent.clinic.security.blacklist.AccessTokenBlacklist;
 import com.wedent.clinic.security.ratelimit.LoginRateLimiter;
 import io.jsonwebtoken.Claims;
 import io.swagger.v3.oas.annotations.Operation;
@@ -46,10 +45,9 @@ public class AuthController {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final AuthService authService;
-    private final LoginRateLimiter loginRateLimiter;
     private final AuditEventPublisher auditEventPublisher;
     private final JwtTokenProvider tokenProvider;
-    private final AccessTokenBlacklist accessTokenBlacklist;
+    private final LoginRateLimiter loginRateLimiter;
 
     @Operation(summary = "Login with email/password and receive a JWT access token + refresh token")
     @PostMapping("/login")
@@ -57,19 +55,16 @@ public class AuthController {
                                                             HttpServletRequest httpRequest) {
         String ip = clientIp(httpRequest);
         String userAgent = httpRequest.getHeader("User-Agent");
-        String key = LoginRateLimiter.keyOf(ip, request.email());
-        if (loginRateLimiter.isBlocked(key)) {
-            auditEventPublisher.publish(AuditEvent.builder(AuditEventType.LOGIN_RATE_LIMITED)
-                    .actorEmail(request.email())
-                    .ipAddress(ip)
-                    .detail(Map.of("reason", "WINDOW_EXCEEDED"))
-                    .build());
-            throw new BusinessException(ErrorCode.TOO_MANY_REQUESTS,
-                    "Too many failed login attempts. Try again later.");
+        String rateLimitKey = LoginRateLimiter.keyOf(ip, request.email());
+
+        if (loginRateLimiter.isBlocked(rateLimitKey)) {
+            throw new BusinessException(ErrorCode.TOO_MANY_REQUESTS, "Too many login attempts. Please try again later.");
         }
+
         try {
             LoginResponse response = authService.login(request, ip, userAgent);
-            loginRateLimiter.onSuccess(key);
+            loginRateLimiter.onSuccess(rateLimitKey);
+
             auditEventPublisher.publish(AuditEvent.builder(AuditEventType.LOGIN_SUCCESS)
                     .actorUserId(response.userId())
                     .actorEmail(response.email())
@@ -79,7 +74,7 @@ public class AuthController {
                     .build());
             return ResponseEntity.ok(ApiResponse.ok(response));
         } catch (InvalidCredentialsException e) {
-            loginRateLimiter.onFailure(key);
+            loginRateLimiter.onFailure(rateLimitKey);
             auditEventPublisher.publish(AuditEvent.builder(AuditEventType.LOGIN_FAILURE)
                     .actorEmail(request.email())
                     .ipAddress(ip)
@@ -109,11 +104,6 @@ public class AuthController {
         // If the caller included an Authorization header, blacklist that
         // access token until its natural expiry so it can't keep making
         // calls with the stale session.
-        String accessToken = bearerToken(httpRequest);
-        if (accessToken != null) {
-            tokenProvider.parse(accessToken).ifPresent(this::blacklist);
-        }
-
         AuthenticatedUser caller = SecurityUtils.currentUserOptional().orElse(null);
         AuditEvent.Builder audit = AuditEvent.builder(AuditEventType.LOGOUT).ipAddress(ip);
         if (caller != null) {
@@ -125,11 +115,6 @@ public class AuthController {
         auditEventPublisher.publish(audit.build());
 
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
-    }
-
-    private void blacklist(Claims claims) {
-        if (claims.getId() == null || claims.getExpiration() == null) return;
-        accessTokenBlacklist.blacklist(claims.getId(), claims.getExpiration().toInstant());
     }
 
     private static String bearerToken(HttpServletRequest request) {

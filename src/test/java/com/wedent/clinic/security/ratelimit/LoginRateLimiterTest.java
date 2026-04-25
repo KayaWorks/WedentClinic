@@ -1,10 +1,10 @@
 package com.wedent.clinic.security.ratelimit;
 
-import com.wedent.clinic.config.CacheProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import com.wedent.clinic.config.CacheProperties;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 

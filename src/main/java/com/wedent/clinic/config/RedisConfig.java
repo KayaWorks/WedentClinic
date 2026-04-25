@@ -1,59 +1,92 @@
 package com.wedent.clinic.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.redisson.Redisson;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
+import org.redisson.config.SingleServerConfig;
+import org.redisson.spring.data.connection.RedissonConnectionFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
-import org.springframework.data.redis.serializer.RedisSerializationContext;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
-/**
- * Redis wiring.  Redis is a first-class dependency of the app because refresh
- * tokens and the access-token blacklist live there; there is no in-memory
- * fallback for those features.  Unit tests mock the service interfaces; the
- * integration tests spin up a testcontainer redis.
- */
-@Configuration
+import java.net.URI;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+
 @EnableCaching
+@Configuration
 @EnableConfigurationProperties(CacheProperties.class)
 public class RedisConfig {
 
-    /**
-     * String-only template.  The blacklist and rate-limiter write short opaque
-     * strings and need predictable UTF-8 keys — not Java-serialized blobs.
-     */
+    @Value("${spring.data.redis.url:redis://localhost:6379}")
+    private String redisUrl;
+
     @Bean
-    public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory cf) {
-        return new StringRedisTemplate(cf);
+    public RedisTemplate<?, ?> redisTemplate() {
+        RedisTemplate<byte[], byte[]> template = new RedisTemplate<>();
+        template.setConnectionFactory(redisConnectionFactory());
+        template.setKeySerializer(new StringRedisSerializer());
+        return template;
     }
 
-    /**
-     * Spring Cache abstraction with Jackson JSON values + a default TTL.
-     * JSR-310 module is registered so {@code LocalDate}/{@code Instant} fields
-     * survive round-trips — a common landmine with the stock serializer.
-     */
     @Bean
-    public RedisCacheManager cacheManager(RedisConnectionFactory cf, CacheProperties props) {
-        ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
-        GenericJackson2JsonRedisSerializer valueSerializer = new GenericJackson2JsonRedisSerializer(mapper);
+    public RedissonConnectionFactory redisConnectionFactory() {
+        return new RedissonConnectionFactory(redissonClient());
+    }
 
-        RedisCacheConfiguration defaults = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(props.defaultTtl())
-                .prefixCacheNameWith(props.keyPrefix() + "cache:")
-                .disableCachingNullValues()
-                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(valueSerializer));
-
-        return RedisCacheManager.builder(cf)
-                .cacheDefaults(defaults)
-                .transactionAware() // only write to cache after the outer @Transactional commits
+    @Bean
+    public CacheManager cacheManager() {
+        return RedisCacheManager.builder(redisConnectionFactory())
+                .withInitialCacheConfigurations(constructInitialCacheConfigurations())
+                .transactionAware()
                 .build();
+    }
+
+    @Bean
+    public RedissonClient redissonClient() {
+        String url = redisUrl;
+        if (!url.startsWith("redis://") && !url.startsWith("rediss://")) {
+            url = "redis://" + url;
+        }
+
+        URI uri = URI.create(url);
+        String scheme = uri.getScheme();
+        String host = uri.getHost();
+        int port = uri.getPort() > 0 ? uri.getPort() : 6379;
+
+        Config config = new Config();
+        SingleServerConfig singleServer = config.useSingleServer()
+                .setAddress(scheme + "://" + host + ":" + port);
+
+        String userInfo = uri.getUserInfo();
+        if (userInfo != null && !userInfo.isBlank()) {
+            int colonIdx = userInfo.indexOf(':');
+            if (colonIdx > 0) {
+                String username = userInfo.substring(0, colonIdx);
+                String password = userInfo.substring(colonIdx + 1);
+                if (!"default".equals(username)) {
+                    singleServer.setUsername(username);
+                }
+                singleServer.setPassword(password);
+            } else {
+                singleServer.setPassword(userInfo);
+            }
+        }
+
+        return Redisson.create(config);
+    }
+
+    private Map<String, RedisCacheConfiguration> constructInitialCacheConfigurations() {
+        Map<String, RedisCacheConfiguration> map = new HashMap<>();
+        map.put("jwtToken", RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofDays(1)));
+        return map;
     }
 }

@@ -104,8 +104,5 @@ app:
       - /actuator/health
       - /actuator/info
   redis:
-    # Namespace applied to every Redis key we write so the same cluster can be
-    # shared across environments/services without collisions.
     key-prefix: ${REDIS_KEY_PREFIX:wedent:}
-    # Fallback TTL for Spring @Cacheable entries that don't set one.
     default-ttl: ${CACHE_DEFAULT_TTL:10m}

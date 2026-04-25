@@ -6,7 +6,6 @@ import com.wedent.clinic.auth.dto.LoginResponse;
 import com.wedent.clinic.auth.service.AuthService;
 import com.wedent.clinic.common.audit.AuditEventPublisher;
 import com.wedent.clinic.common.exception.GlobalExceptionHandler;
-import com.wedent.clinic.security.blacklist.AccessTokenBlacklist;
 import com.wedent.clinic.security.ratelimit.LoginRateLimiter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,9 +74,6 @@ class CorsSecurityConfigTest {
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
-
-    @MockBean
-    private AccessTokenBlacklist accessTokenBlacklist;
 
     @MockBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;

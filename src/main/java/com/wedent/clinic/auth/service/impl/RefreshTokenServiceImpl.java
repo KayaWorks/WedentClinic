@@ -10,11 +10,11 @@ import com.wedent.clinic.common.audit.AuditEventPublisher;
 import com.wedent.clinic.common.audit.event.AuditEvent;
 import com.wedent.clinic.common.audit.event.AuditEventType;
 import com.wedent.clinic.common.exception.InvalidCredentialsException;
-import com.wedent.clinic.config.CacheProperties;
 import com.wedent.clinic.security.JwtProperties;
 import com.wedent.clinic.user.entity.User;
 import com.wedent.clinic.user.entity.UserStatus;
 import lombok.extern.slf4j.Slf4j;
+import com.wedent.clinic.config.CacheProperties;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 

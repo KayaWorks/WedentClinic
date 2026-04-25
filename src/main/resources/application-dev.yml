@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://interchange.proxy.rlwy.net:39479/railway}
+    url: ${DB_URL:jdbc:postgresql://interchange.proxy.rlwy.net:39479/postgres}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:pdQSyxuznPdchPguHuYbYhwvvdhCoeLO}
     driver-class-name: org.postgresql.Driver
@@ -13,12 +13,6 @@ spring:
       hibernate:
         format_sql: true
     show-sql: false
-  data:
-    redis:
-      repositories:
-        enabled: false
-      url: ${REDIS_PUBLIC_URL:${REDIS_URL:redis://localhost:6379}}
-
 logging:
   level:
     root: INFO

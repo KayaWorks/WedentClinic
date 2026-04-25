@@ -25,6 +25,7 @@
         <jjwt.version>0.12.6</jjwt.version>
         <springdoc.version>2.6.0</springdoc.version>
         <testcontainers.version>1.20.4</testcontainers.version>
+        <redisson.version>3.23.5</redisson.version>
     </properties>
 
     <dependencyManagement>
@@ -66,8 +67,9 @@
 
         <!-- Redis (cache, JWT blacklist, rate limiter state) -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-data-31</artifactId>
+            <version>${redisson.version}</version>
         </dependency>
         <!-- Spring Cache abstraction — we use Redis as the backing CacheManager -->
         <dependency>
