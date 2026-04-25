@@ -4,6 +4,7 @@ import com.wedent.clinic.appointment.dto.AppointmentCreateRequest;
 import com.wedent.clinic.appointment.dto.AppointmentResponse;
 import com.wedent.clinic.appointment.dto.AppointmentStatusUpdateRequest;
 import com.wedent.clinic.appointment.dto.AppointmentUpdateRequest;
+import com.wedent.clinic.appointment.dto.CalendarAppointmentResponse;
 import com.wedent.clinic.appointment.entity.Appointment;
 import com.wedent.clinic.appointment.entity.AppointmentStatus;
 import com.wedent.clinic.appointment.mapper.AppointmentMapper;
@@ -36,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
@@ -199,6 +201,102 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .search(companyId, effectiveClinicId, doctorId, patientId, date, status, pageable)
                 .map(appointmentMapper::toResponse);
         return PageResponse.of(page);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CalendarAppointmentResponse> calendar(LocalDate start,
+                                                      LocalDate end,
+                                                      Long doctorId,
+                                                      Long clinicId,
+                                                      AppointmentStatus status) {
+        if (start == null || end == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "start and end are required");
+        }
+        if (end.isBefore(start)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "end must be on or after start");
+        }
+        long days = ChronoUnit.DAYS.between(start, end);
+        if (days > 370) {
+            // 370 lets a full 12-month calendar pull ±5 days of slack without
+            // tripping the guard; anything wider is almost always a bug.
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "Calendar range cannot exceed 370 days");
+        }
+
+        Long companyId = SecurityUtils.currentCompanyId();
+        Long effectiveClinicId = tenantScopeResolver.resolveClinicScope(clinicId);
+        Long effectiveDoctorId = resolveCalendarDoctorScope(doctorId, companyId);
+
+        List<Appointment> rows = appointmentRepository
+                .findCalendarRange(companyId, effectiveClinicId, effectiveDoctorId, start, end, status);
+        return rows.stream().map(AppointmentServiceImpl::toCalendarResponse).toList();
+    }
+
+    /**
+     * Role-scoped doctor filter for the calendar view.
+     *
+     * <p>DOCTOR is pinned to their own employee id regardless of what was
+     * requested — a DOCTOR viewing the calendar can only ever see their
+     * own appointments. Everyone else passes the filter through unchanged
+     * (with existence + tenant check when a specific id was requested).</p>
+     */
+    private Long resolveCalendarDoctorScope(Long requestedDoctorId, Long companyId) {
+        if (SecurityUtils.hasRole(SecurityUtils.ROLE_DOCTOR)
+                && !SecurityUtils.hasRole(SecurityUtils.ROLE_CLINIC_OWNER)
+                && !SecurityUtils.hasRole(SecurityUtils.ROLE_MANAGER)) {
+            // Pure DOCTOR: resolve their employee id from userId. If they
+            // have no employee row (misconfigured account) the calendar is
+            // empty rather than leaking every other doctor's data.
+            Long userId = SecurityUtils.currentUserIdOrNull();
+            if (userId == null) {
+                return -1L;
+            }
+            return employeeRepository.findByUserIdAndCompanyId(userId, companyId)
+                    .map(Employee::getId)
+                    .orElse(-1L);
+        }
+        if (requestedDoctorId != null) {
+            // Validate existence + tenant scope so a caller passing a random
+            // id doesn't silently get a mystery-empty calendar.
+            employeeRepository
+                    .findByIdAndCompanyIdAndEmployeeType(requestedDoctorId, companyId, EmployeeType.DOCTOR)
+                    .orElseThrow(() -> new ResourceNotFoundException("Doctor", requestedDoctorId));
+        }
+        return requestedDoctorId;
+    }
+
+    private static CalendarAppointmentResponse toCalendarResponse(Appointment a) {
+        return new CalendarAppointmentResponse(
+                a.getId(),
+                a.getClinic().getId(),
+                a.getPatient().getId(),
+                "%s %s".formatted(a.getPatient().getFirstName(), a.getPatient().getLastName()),
+                a.getDoctor().getId(),
+                "%s %s".formatted(a.getDoctor().getFirstName(), a.getDoctor().getLastName()),
+                a.getAppointmentDate(),
+                a.getStartTime(),
+                a.getEndTime(),
+                a.getStatus(),
+                colorKeyFor(a.getStatus()),
+                false
+        );
+    }
+
+    /**
+     * Stable status→color mapping. Kept simple on purpose — the FE can
+     * remap or theme, the server just guarantees a deterministic string.
+     */
+    private static String colorKeyFor(AppointmentStatus status) {
+        return switch (status) {
+            case CREATED   -> "blue";
+            case CONFIRMED -> "green";
+            case CANCELLED -> "red";
+            case COMPLETED -> "gray";
+            case NO_SHOW   -> "orange";
+        };
     }
 
     @Override

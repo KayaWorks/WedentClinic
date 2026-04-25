@@ -26,9 +26,15 @@ public enum AuditEventType {
     APPOINTMENT_STATUS_CHANGED,
     APPOINTMENT_DELETED,
 
-    // --- User/role administration (reserved for future user-mgmt endpoints) ---
+    // --- User/role administration ---
     USER_CREATED,
+    /** Admin-side profile edit (name, phone, clinic re-assignment, employee type, doctor profile). */
+    USER_UPDATED,
     USER_DISABLED,
+    /** Admin reactivated a disabled account — inverse of {@link #USER_DISABLED}. */
+    USER_ACTIVATED,
+    /** Admin-generated temporary password; always revokes every live session. */
+    USER_PASSWORD_RESET,
     USER_ROLE_CHANGED,
     /** Self-service password change — all live sessions revoked as a side effect. */
     USER_PASSWORD_CHANGED,

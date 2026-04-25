@@ -52,4 +52,24 @@ public class CompanyController {
             @Valid @RequestBody CompanyUpdateRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(companyService.updateCurrent(request)));
     }
+
+    // ───────────────────────── /me aliases ─────────────────────────
+    // Thin aliases delegating to the same service logic so the public
+    // API speaks a consistent "me" verb without duplicating business
+    // rules, validation, or audit plumbing.
+
+    @Operation(summary = "Alias of GET /current — fetches the caller's own company")
+    @PreAuthorize("hasAnyRole('CLINIC_OWNER','MANAGER','DOCTOR','STAFF')")
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<CompanyResponse>> getMe() {
+        return ResponseEntity.ok(ApiResponse.ok(companyService.getCurrent()));
+    }
+
+    @Operation(summary = "Alias of PATCH /current — partial update (owner-only)")
+    @PreAuthorize("hasRole('CLINIC_OWNER')")
+    @PatchMapping("/me")
+    public ResponseEntity<ApiResponse<CompanyResponse>> patchMe(
+            @Valid @RequestBody CompanyUpdateRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(companyService.updateCurrent(request)));
+    }
 }

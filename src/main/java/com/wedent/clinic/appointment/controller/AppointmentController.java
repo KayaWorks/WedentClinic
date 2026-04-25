@@ -4,6 +4,7 @@ import com.wedent.clinic.appointment.dto.AppointmentCreateRequest;
 import com.wedent.clinic.appointment.dto.AppointmentResponse;
 import com.wedent.clinic.appointment.dto.AppointmentStatusUpdateRequest;
 import com.wedent.clinic.appointment.dto.AppointmentUpdateRequest;
+import com.wedent.clinic.appointment.dto.CalendarAppointmentResponse;
 import com.wedent.clinic.appointment.entity.AppointmentStatus;
 import com.wedent.clinic.appointment.service.AppointmentService;
 import com.wedent.clinic.common.dto.ApiResponse;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Tag(name = "Appointments")
 @RestController
@@ -60,6 +62,24 @@ public class AppointmentController {
             @ParameterObject Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.ok(
                 appointmentService.search(clinicId, doctorId, patientId, date, status, pageable)));
+    }
+
+    @Operation(summary = "Calendar range view (role-scoped, 370-day cap, cancelled excluded by default)")
+    @PreAuthorize("hasAnyRole('CLINIC_OWNER','MANAGER','DOCTOR','STAFF')")
+    @GetMapping("/calendar")
+    public ResponseEntity<ApiResponse<List<CalendarAppointmentResponse>>> calendar(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
+            @RequestParam(required = false) Long doctorId,
+            @RequestParam(required = false) Long clinicId,
+            @RequestParam(required = false) AppointmentStatus status,
+            // 'view' (DAY|WEEK|MONTH|AGENDA) is purely a client-side hint —
+            // the server only enforces the resolved date range. Declared so
+            // it is rejected-cleanly-ignored rather than triggering an
+            // "unknown parameter" warning in strict clients.
+            @RequestParam(required = false) String view) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                appointmentService.calendar(start, end, doctorId, clinicId, status)));
     }
 
     @Operation(summary = "Get appointment by id")

@@ -82,9 +82,11 @@ class RefreshTokenServiceImplTest {
         });
 
         when(redis.delete(anyString())).thenAnswer(inv -> {
-            Object removed = kv.remove((String) inv.getArgument(0));
-            ttls.remove((String) inv.getArgument(0));
-            return removed != null;
+            String key = inv.getArgument(0);
+            Object removed = kv.remove(key);
+            Object removedSet = sets.remove(key);
+            ttls.remove(key);
+            return removed != null || removedSet != null;
         });
         when(redis.expire(anyString(), any(Duration.class))).thenAnswer(inv -> {
             ttls.put(inv.getArgument(0), inv.getArgument(1));
@@ -94,19 +96,32 @@ class RefreshTokenServiceImplTest {
         // ─── SET ops ─────────────────────────────────────────────────────────────
         when(setOps.add(anyString(), any(String[].class))).thenAnswer(inv -> {
             String key = inv.getArgument(0);
-            String[] members = inv.getArgument(1);
             Set<String> s = sets.computeIfAbsent(key, k -> new HashSet<>());
-            for (String m : members) s.add(m);
-            return (long) members.length;
+            long added = 0;
+            for (int i = 1; i < inv.getArguments().length; i++) {
+                Object arg = inv.getArguments()[i];
+                if (arg instanceof String[] members) {
+                    for (String m : members) if (s.add(m)) added++;
+                } else if (arg instanceof String member && s.add(member)) {
+                    added++;
+                }
+            }
+            return added;
         });
         when(setOps.members(anyString())).thenAnswer(inv ->
                 sets.getOrDefault((String) inv.getArgument(0), Set.of()));
         when(setOps.remove(anyString(), any(Object[].class))).thenAnswer(inv -> {
             Set<String> s = sets.get((String) inv.getArgument(0));
             if (s == null) return 0L;
-            Object[] members = inv.getArgument(1);
             long removed = 0;
-            for (Object m : members) if (s.remove(m)) removed++;
+            for (int i = 1; i < inv.getArguments().length; i++) {
+                Object arg = inv.getArguments()[i];
+                if (arg instanceof Object[] members) {
+                    for (Object m : members) if (s.remove(m)) removed++;
+                } else if (s.remove(arg)) {
+                    removed++;
+                }
+            }
             return removed;
         });
 

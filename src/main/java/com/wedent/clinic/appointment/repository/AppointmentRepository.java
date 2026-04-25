@@ -126,4 +126,33 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             GROUP BY a.status
             """)
     List<Object[]> countByStatusForDate(Long companyId, Long clinicId, Long doctorId, LocalDate date);
+
+    /**
+     * Range query that powers {@code GET /api/appointments/calendar}.
+     *
+     * <p>The {@code status} filter is nullable — when {@code null} we
+     * include every status <em>except</em> {@code CANCELLED} (the calendar
+     * default is "don't clutter the grid with rejected slots"). When a
+     * specific status is requested we honour it verbatim, including the
+     * ability to explicitly list cancelled rows.</p>
+     *
+     * <p>Uses {@code BETWEEN} (inclusive on both ends) to match how a
+     * calendar UI conceptualises "week of" / "month of" ranges: the last
+     * day is part of the view.</p>
+     */
+    @Query("""
+            SELECT a FROM Appointment a
+            WHERE a.company.id = :companyId
+              AND (:clinicId IS NULL OR a.clinic.id = :clinicId)
+              AND (:doctorId IS NULL OR a.doctor.id = :doctorId)
+              AND a.appointmentDate BETWEEN :from AND :to
+              AND (
+                   (:status IS NOT NULL AND a.status = :status)
+                OR (:status IS NULL AND a.status <> com.wedent.clinic.appointment.entity.AppointmentStatus.CANCELLED)
+              )
+            ORDER BY a.appointmentDate, a.startTime
+            """)
+    @EntityGraph(attributePaths = {"patient", "doctor", "clinic"})
+    List<Appointment> findCalendarRange(Long companyId, Long clinicId, Long doctorId,
+                                        LocalDate from, LocalDate to, AppointmentStatus status);
 }

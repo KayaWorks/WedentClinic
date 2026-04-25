@@ -16,6 +16,21 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     @EntityGraph(attributePaths = {"company", "clinic", "user"})
     Optional<Employee> findByIdAndCompanyId(Long id, Long companyId);
 
+    @EntityGraph(attributePaths = {"company", "clinic", "user"})
+    Optional<Employee> findByUserIdAndCompanyId(Long userId, Long companyId);
+
+    /**
+     * Batch-loads all employees for the given user ids, tenant-scoped.
+     * Used by the admin user list to stitch phone / employee type into
+     * the response without N+1-ing per row.
+     */
+    @Query("""
+            SELECT e FROM Employee e
+            WHERE e.company.id = :companyId
+              AND e.user.id IN :userIds
+            """)
+    java.util.List<Employee> findAllByUserIdsAndCompanyId(java.util.Collection<Long> userIds, Long companyId);
+
     boolean existsByClinicIdAndEmailIgnoreCaseAndIdNot(Long clinicId, String email, Long id);
 
     boolean existsByClinicIdAndEmailIgnoreCase(Long clinicId, String email);
