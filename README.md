@@ -87,16 +87,16 @@ Recommended Railway variables:
 ```bash
 SPRING_PROFILES_ACTIVE=railway
 JAVA_OPTS=-Xms128m -Xmx384m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -Dfile.encoding=UTF-8
-DB_URL=jdbc:postgresql://YOUR-POSTGRES-HOST:PORT/YOUR_DATABASE
-DB_USERNAME=YOUR_DATABASE_USER
-DB_PASSWORD=YOUR_DATABASE_PASSWORD
+DB_URL=jdbc:postgresql://interchange.proxy.rlwy.net:39479/railway
+DB_USERNAME=postgres
+DB_PASSWORD=<provided Railway PostgreSQL password>
 REDIS_URL=<RAILWAY_INTERNAL_REDIS_URL>
 REDIS_PUBLIC_URL=<RAILWAY_PUBLIC_REDIS_URL>
 JWT_SECRET=replace-with-a-strong-256-bit-or-larger-secret
 APP_CORS_ALLOWED_ORIGINS=<FRONTEND_PRODUCTION_URL>,http://localhost:5173,http://localhost:3000
 ```
 
-The backend reads `REDIS_URL`. `REDIS_PUBLIC_URL` is useful only for connections from outside Railway and is not used by the application config.
+The backend reads `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, and `REDIS_URL`. `REDIS_PUBLIC_URL` is useful only for connections from outside Railway and is not used by the application config. If Railway logs show the active profile as `dev`, remove any Railway variable that sets `SPRING_PROFILES_ACTIVE=dev` and redeploy with `SPRING_PROFILES_ACTIVE=railway`.
 
 If the service still hits Railway memory limits, raise only the heap cap first:
 
