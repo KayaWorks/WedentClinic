@@ -1,0 +1,88 @@
+spring:
+  main:
+    lazy-initialization: true
+  jmx:
+    enabled: false
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:3}
+      minimum-idle: ${DB_MIN_IDLE:0}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:30000}
+      idle-timeout: ${DB_IDLE_TIMEOUT_MS:30000}
+      max-lifetime: ${DB_MAX_LIFETIME_MS:1800000}
+      leak-detection-threshold: 0
+      pool-name: WedentRailwayHikari
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        generate_statistics: false
+        jdbc:
+          batch_size: 10
+          lob:
+            non_contextual_creation: true
+  flyway:
+    enabled: true
+  data:
+    redis:
+      repositories:
+        enabled: false
+      url: ${REDIS_URL}
+      timeout: 2s
+      connect-timeout: 1s
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 0
+
+server:
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+  tomcat:
+    threads:
+      max: ${TOMCAT_MAX_THREADS:50}
+      min-spare: ${TOMCAT_MIN_SPARE:5}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:50}
+    max-connections: ${TOMCAT_MAX_CONNECTIONS:200}
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  prometheus:
+    metrics:
+      export:
+        enabled: false
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  level:
+    root: INFO
+    com.wedent.clinic: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+
+app:
+  bootstrap:
+    enabled: false

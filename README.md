@@ -28,6 +28,7 @@ Spring Boot 3 / Java 21 backend for a multi-tenant dental clinic management syst
 | `it`    | Testcontainers-backed integration tests                    |
 | `test`  | H2 smoke test (legacy; being phased out in favor of `it`)   |
 | `prod`  | Env-driven config, restricted error/health detail, management port split |
+| `railway` | Railway runtime profile with capped pools/threads, lazy init, health/info actuator only |
 
 Set via `SPRING_PROFILES_ACTIVE`.
 
@@ -72,6 +73,35 @@ APP_CORS_ALLOWED_ORIGINS=https://clinicflow-dashboard-production.up.railway.app,
 ```
 
 If the variable is not set, local Vite defaults are allowed: `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:3000`, and `http://127.0.0.1:3000`.
+
+## Railway deployment
+
+The repository includes `railway.json` so Railway starts the jar with an explicit memory-capped JVM command while still honoring `JAVA_OPTS` and `PORT`:
+
+```bash
+java ${JAVA_OPTS:--Xms128m -Xmx384m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -Dfile.encoding=UTF-8} -Dserver.port=${PORT:-8080} -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE:-railway} -jar target/*.jar
+```
+
+Recommended Railway variables:
+
+```bash
+SPRING_PROFILES_ACTIVE=railway
+JAVA_OPTS=-Xms128m -Xmx384m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -Dfile.encoding=UTF-8
+DB_URL=jdbc:postgresql://YOUR-POSTGRES-HOST:PORT/YOUR_DATABASE
+DB_USERNAME=YOUR_DATABASE_USER
+DB_PASSWORD=YOUR_DATABASE_PASSWORD
+REDIS_URL=redis://default:YOUR_REDIS_PASSWORD@YOUR_REDIS_HOST:PORT
+JWT_SECRET=replace-with-a-strong-256-bit-or-larger-secret
+APP_CORS_ALLOWED_ORIGINS=https://clinicflow-dashboard-production.up.railway.app,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000
+```
+
+If the service still hits Railway memory limits, raise only the heap cap first:
+
+```bash
+JAVA_OPTS=-Xms128m -Xmx512m -XX:+UseSerialGC -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=96m -Dfile.encoding=UTF-8
+```
+
+The `railway` profile keeps Flyway enabled, disables Swagger/OpenAPI endpoints, exposes only `health,info` actuator endpoints, and starts with small Hikari/Tomcat defaults (`DB_POOL_SIZE=3`, `TOMCAT_MAX_THREADS=50`).
 
 ## Concurrency-safe appointment booking
 

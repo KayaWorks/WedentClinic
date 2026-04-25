@@ -30,6 +30,14 @@
         <logger name="org.hibernate.SQL" level="WARN"/>
     </springProfile>
 
+    <springProfile name="railway">
+        <logger name="com.wedent.clinic" level="INFO"/>
+        <logger name="org.hibernate.SQL" level="WARN"/>
+        <logger name="org.hibernate.orm.jdbc.bind" level="WARN"/>
+        <logger name="org.springframework.web" level="INFO"/>
+        <logger name="org.springframework.security" level="INFO"/>
+    </springProfile>
+
     <springProfile name="it | test">
         <logger name="com.wedent.clinic" level="INFO"/>
         <logger name="org.hibernate.SQL" level="WARN"/>
