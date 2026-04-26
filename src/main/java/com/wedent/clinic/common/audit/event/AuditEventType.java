@@ -67,5 +67,14 @@ public enum AuditEventType {
     /** DRAFT→CANCELLED (wrong draft, abandoned). */
     PAYOUT_CANCELLED,
     PAYOUT_DEDUCTION_ADDED,
-    PAYOUT_DEDUCTION_REMOVED
+    PAYOUT_DEDUCTION_REMOVED,
+
+    // --- Patient Notes ---
+    PATIENT_NOTE_CREATED,
+    PATIENT_NOTE_UPDATED,
+    PATIENT_NOTE_DELETED,
+
+    // --- Payments ---
+    PAYMENT_CREATED,
+    PAYMENT_CANCELLED
 }

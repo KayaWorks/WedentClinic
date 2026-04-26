@@ -21,8 +21,12 @@ public record TreatmentResponse(
         String toothNumber,
         String notes,
         Instant performedAt,
+        /** Set when status transitions to COMPLETED. */
+        Instant completedAt,
         BigDecimal fee,
         String currency,
         TreatmentStatus status,
-        Instant payoutLockedAt
+        Instant payoutLockedAt,
+        Instant createdAt,
+        Instant updatedAt
 ) {}

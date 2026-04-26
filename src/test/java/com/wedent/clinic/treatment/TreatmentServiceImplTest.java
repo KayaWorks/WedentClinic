@@ -320,8 +320,13 @@ class TreatmentServiceImplTest {
                 id, PATIENT_ID, DOCTOR_ID, "Ayşe Demir",
                 CLINIC_ID, COMPANY_ID, "Dolgu", "16", "n",
                 Instant.parse("2026-04-20T10:00:00Z"),
+                null, // completedAt
                 new BigDecimal("500.00"), "TRY",
-                TreatmentStatus.PLANNED, null);
+                TreatmentStatus.PLANNED,
+                null, // payoutLockedAt
+                null, // createdAt
+                null  // updatedAt
+        );
     }
 
     private static void authenticate(Long userId, Long companyId, Long clinicId, String role) {
