@@ -24,7 +24,8 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
               AND (:clinicId IS NULL OR p.clinic.id = :clinicId)
               AND (:name IS NULL OR
                    LOWER(p.firstName) LIKE LOWER(CONCAT('%', :name, '%')) OR
-                   LOWER(p.lastName)  LIKE LOWER(CONCAT('%', :name, '%')))
+                   LOWER(p.lastName)  LIKE LOWER(CONCAT('%', :name, '%')) OR
+                   LOWER(CONCAT(p.firstName, ' ', p.lastName)) LIKE LOWER(CONCAT('%', :name, '%')))
               AND (:phone IS NULL OR p.phone LIKE CONCAT('%', :phone, '%'))
             """)
     Page<Patient> search(Long companyId, Long clinicId, String name, String phone, Pageable pageable);
