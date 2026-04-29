@@ -8,18 +8,26 @@ import com.wedent.clinic.common.exception.ResourceNotFoundException;
 import com.wedent.clinic.common.tenant.TenantScopeResolver;
 import com.wedent.clinic.patient.dto.PatientCreateRequest;
 import com.wedent.clinic.patient.dto.PatientResponse;
+import com.wedent.clinic.patient.dto.PatientSummaryResponse;
 import com.wedent.clinic.patient.dto.PatientUpdateRequest;
 import com.wedent.clinic.patient.entity.Patient;
 import com.wedent.clinic.patient.mapper.PatientMapper;
 import com.wedent.clinic.patient.repository.PatientRepository;
 import com.wedent.clinic.patient.service.PatientService;
+import com.wedent.clinic.payment.entity.PaymentStatus;
+import com.wedent.clinic.payment.repository.PaymentRepository;
 import com.wedent.clinic.security.SecurityUtils;
+import com.wedent.clinic.treatment.entity.TreatmentStatus;
+import com.wedent.clinic.treatment.repository.TreatmentRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +36,9 @@ public class PatientServiceImpl implements PatientService {
 
     private final PatientRepository patientRepository;
     private final ClinicRepository clinicRepository;
+    private final TreatmentRepository treatmentRepository;
+    private final PaymentRepository paymentRepository;
+    @Qualifier("patientMapperImpl")
     private final PatientMapper patientMapper;
     private final TenantScopeResolver tenantScopeResolver;
 
@@ -101,6 +112,31 @@ public class PatientServiceImpl implements PatientService {
         Patient patient = loadInScope(id);
         SecurityUtils.verifyClinicAccess(patient.getClinic().getId());
         patientRepository.delete(patient);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PatientSummaryResponse getSummary(Long id) {
+        Patient patient = loadInScope(id);
+        SecurityUtils.verifyClinicAccess(patient.getClinic().getId());
+        Long companyId = patient.getCompany().getId();
+
+        long planned  = treatmentRepository.countByPatientIdAndCompanyIdAndStatus(id, companyId, TreatmentStatus.PLANNED);
+        long completed = treatmentRepository.countByPatientIdAndCompanyIdAndStatus(id, companyId, TreatmentStatus.COMPLETED);
+        long cancelled = treatmentRepository.countByPatientIdAndCompanyIdAndStatus(id, companyId, TreatmentStatus.CANCELLED);
+
+        BigDecimal treatmentAmount = treatmentRepository
+                .sumFeeByPatientIdAndCompanyIdAndStatus(id, companyId, TreatmentStatus.COMPLETED);
+        if (treatmentAmount == null) treatmentAmount = BigDecimal.ZERO;
+
+        BigDecimal paidAmount = paymentRepository
+                .sumByPatientIdAndCompanyIdAndStatus(id, companyId, PaymentStatus.COMPLETED);
+        if (paidAmount == null) paidAmount = BigDecimal.ZERO;
+
+        BigDecimal balance = paidAmount.subtract(treatmentAmount);
+
+        return new PatientSummaryResponse(id, planned, completed, cancelled,
+                treatmentAmount, paidAmount, balance, "TRY");
     }
 
     private Patient loadInScope(Long id) {

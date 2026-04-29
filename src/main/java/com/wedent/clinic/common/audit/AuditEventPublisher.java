@@ -43,6 +43,7 @@ public class AuditEventPublisher {
                 event.actorEmail(),
                 event.companyId(),
                 event.clinicId(),
+                event.patientId(),
                 event.targetType(),
                 event.targetId(),
                 event.detail(),

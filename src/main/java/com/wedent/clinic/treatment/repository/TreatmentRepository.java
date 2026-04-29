@@ -8,11 +8,25 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
 public interface TreatmentRepository extends JpaRepository<Treatment, Long> {
+
+    // ── Aggregate helpers for patient summary ──────────────────────────────
+
+    long countByPatientIdAndCompanyIdAndStatus(Long patientId, Long companyId, TreatmentStatus status);
+
+    @Query("""
+            SELECT COALESCE(SUM(t.fee), 0)
+            FROM Treatment t
+            WHERE t.patient.id = :patientId
+              AND t.company.id = :companyId
+              AND t.status  = :status
+            """)
+    BigDecimal sumFeeByPatientIdAndCompanyIdAndStatus(Long patientId, Long companyId, TreatmentStatus status);
 
     /**
      * Tenant-scoped fetch with relations eagerly joined — used by every

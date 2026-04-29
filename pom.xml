@@ -26,6 +26,8 @@
         <springdoc.version>2.6.0</springdoc.version>
         <testcontainers.version>1.20.4</testcontainers.version>
         <redisson.version>3.23.5</redisson.version>
+        <!-- Flyway: override BOM version to gain PostgreSQL 17/18 support -->
+        <flyway.version>10.20.1</flyway.version>
     </properties>
 
     <dependencyManagement>

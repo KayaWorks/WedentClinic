@@ -21,6 +21,7 @@ import com.wedent.clinic.payment.repository.PaymentRepository;
 import com.wedent.clinic.payment.service.PaymentService;
 import com.wedent.clinic.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     private final PaymentRepository repository;
     private final PatientRepository patientRepository;
+    @Qualifier("paymentMapperImpl")
     private final PaymentMapper mapper;
     private final AuditEventPublisher auditEventPublisher;
 

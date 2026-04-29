@@ -17,6 +17,7 @@ import com.wedent.clinic.employee.repository.EmployeeRepository;
 import com.wedent.clinic.employee.service.EmployeeService;
 import com.wedent.clinic.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     private final EmployeeRepository employeeRepository;
     private final ClinicRepository clinicRepository;
+    @Qualifier("employeeMapperImpl")
     private final EmployeeMapper employeeMapper;
     private final TenantScopeResolver tenantScopeResolver;
 

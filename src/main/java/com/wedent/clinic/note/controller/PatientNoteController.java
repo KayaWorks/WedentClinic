@@ -78,8 +78,8 @@ public class PatientNoteController {
     @Operation(summary = "Soft-delete a note")
     @PreAuthorize("hasAnyRole('CLINIC_OWNER','MANAGER','DOCTOR','STAFF')")
     @DeleteMapping("/api/patient-notes/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         patientNoteService.delete(id);
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+        return ResponseEntity.ok(ApiResponse.ok("Note deleted"));
     }
 }

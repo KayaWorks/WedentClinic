@@ -23,6 +23,7 @@ public record AuditEvent(
         String actorEmail,
         Long companyId,
         Long clinicId,
+        Long patientId,
         String targetType,
         Long targetId,
         Map<String, Object> detail,
@@ -45,6 +46,7 @@ public record AuditEvent(
         private String actorEmail;
         private Long companyId;
         private Long clinicId;
+        private Long patientId;
         private String targetType;
         private Long targetId;
         private Map<String, Object> detail;
@@ -59,6 +61,7 @@ public record AuditEvent(
         public Builder actorEmail(String v) { this.actorEmail = v; return this; }
         public Builder companyId(Long v)    { this.companyId = v; return this; }
         public Builder clinicId(Long v)     { this.clinicId = v; return this; }
+        public Builder patientId(Long v)    { this.patientId = v; return this; }
         public Builder targetType(String v) { this.targetType = v; return this; }
         public Builder targetId(Long v)     { this.targetId = v; return this; }
         public Builder detail(Map<String, Object> v) { this.detail = v; return this; }
@@ -67,7 +70,7 @@ public record AuditEvent(
 
         public AuditEvent build() {
             return new AuditEvent(
-                    type, actorUserId, actorEmail, companyId, clinicId,
+                    type, actorUserId, actorEmail, companyId, clinicId, patientId,
                     targetType, targetId, detail, ipAddress, traceId,
                     Instant.now()
             );

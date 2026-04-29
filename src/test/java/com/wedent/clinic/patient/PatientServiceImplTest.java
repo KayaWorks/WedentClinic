@@ -11,6 +11,8 @@ import com.wedent.clinic.patient.entity.Patient;
 import com.wedent.clinic.patient.mapper.PatientMapper;
 import com.wedent.clinic.patient.repository.PatientRepository;
 import com.wedent.clinic.patient.service.impl.PatientServiceImpl;
+import com.wedent.clinic.payment.repository.PaymentRepository;
+import com.wedent.clinic.treatment.repository.TreatmentRepository;
 import com.wedent.clinic.security.AuthenticatedUser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +34,8 @@ class PatientServiceImplTest {
 
     private PatientRepository patientRepository;
     private ClinicRepository clinicRepository;
+    private TreatmentRepository treatmentRepository;
+    private PaymentRepository paymentRepository;
     private PatientMapper patientMapper;
     private TenantScopeResolver tenantScopeResolver;
     private PatientServiceImpl service;
@@ -40,9 +44,12 @@ class PatientServiceImplTest {
     void setUp() {
         patientRepository = Mockito.mock(PatientRepository.class);
         clinicRepository = Mockito.mock(ClinicRepository.class);
+        treatmentRepository = Mockito.mock(TreatmentRepository.class);
+        paymentRepository = Mockito.mock(PaymentRepository.class);
         patientMapper = Mockito.mock(PatientMapper.class);
         tenantScopeResolver = Mockito.mock(TenantScopeResolver.class);
-        service = new PatientServiceImpl(patientRepository, clinicRepository, patientMapper, tenantScopeResolver);
+        service = new PatientServiceImpl(patientRepository, clinicRepository,
+                treatmentRepository, paymentRepository, patientMapper, tenantScopeResolver);
 
         AuthenticatedUser principal = new AuthenticatedUser(
                 1L, "owner@example.com", 100L, null, Set.of("CLINIC_OWNER"), List.of());

@@ -86,8 +86,8 @@ public class TreatmentController {
     @Operation(summary = "Soft-delete a treatment (blocked once payout-locked)")
     @PreAuthorize("hasAnyRole('CLINIC_OWNER','MANAGER')")
     @DeleteMapping("/api/treatments/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         treatmentService.delete(id);
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+        return ResponseEntity.ok(ApiResponse.ok("Treatment deleted"));
     }
 }

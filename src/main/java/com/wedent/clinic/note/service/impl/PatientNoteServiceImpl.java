@@ -19,6 +19,7 @@ import com.wedent.clinic.security.SecurityUtils;
 import com.wedent.clinic.user.entity.User;
 import com.wedent.clinic.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,7 @@ public class PatientNoteServiceImpl implements PatientNoteService {
     private final PatientNoteRepository repository;
     private final PatientRepository patientRepository;
     private final UserRepository userRepository;
+    @Qualifier("patientNoteMapperImpl")
     private final PatientNoteMapper mapper;
     private final AuditEventPublisher auditEventPublisher;
 

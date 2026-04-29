@@ -59,6 +59,7 @@ public class AuditEventListener {
                     .actorEmail(event.actorEmail())
                     .companyId(event.companyId())
                     .clinicId(event.clinicId())
+                    .patientId(event.patientId())
                     .targetType(event.targetType())
                     .targetId(event.targetId())
                     .detail(serializeDetail(event.detail()))

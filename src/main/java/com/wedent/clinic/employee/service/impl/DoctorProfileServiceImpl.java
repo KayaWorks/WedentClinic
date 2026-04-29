@@ -14,6 +14,7 @@ import com.wedent.clinic.employee.repository.EmployeeRepository;
 import com.wedent.clinic.employee.service.DoctorProfileService;
 import com.wedent.clinic.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,7 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
 
     private final DoctorProfileRepository doctorProfileRepository;
     private final EmployeeRepository employeeRepository;
+    @Qualifier("employeeMapperImpl")
     private final EmployeeMapper employeeMapper;
 
     @Override

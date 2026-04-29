@@ -1,6 +1,7 @@
 package com.wedent.clinic.common.audit.repository;
 
 import com.wedent.clinic.common.audit.entity.AuditLog;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -39,4 +40,23 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
                                      Long clinicId,
                                      Collection<String> types,
                                      Pageable pageable);
+
+    /**
+     * Paginated activity feed for a single patient.
+     * {@code eventType} and {@code targetType} are optional whitelist filters;
+     * pass {@code null} to skip.
+     */
+    @Query("""
+            SELECT a FROM AuditLog a
+            WHERE a.companyId = :companyId
+              AND a.patientId = :patientId
+              AND (:eventType IS NULL OR a.eventType = :eventType)
+              AND (:targetType IS NULL OR a.targetType = :targetType)
+            ORDER BY a.occurredAt DESC
+            """)
+    Page<AuditLog> findByPatient(Long companyId,
+                                  Long patientId,
+                                  String eventType,
+                                  String targetType,
+                                  Pageable pageable);
 }

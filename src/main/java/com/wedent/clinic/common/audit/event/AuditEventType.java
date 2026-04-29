@@ -76,5 +76,10 @@ public enum AuditEventType {
 
     // --- Payments ---
     PAYMENT_CREATED,
-    PAYMENT_CANCELLED
+    PAYMENT_CANCELLED,
+
+    // --- Patient Files ---
+    PATIENT_FILE_UPLOADED,
+    PATIENT_FILE_DOWNLOADED,
+    PATIENT_FILE_DELETED
 }

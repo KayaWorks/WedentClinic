@@ -58,6 +58,9 @@ public class AuditLog {
     @Column(name = "clinic_id", updatable = false)
     private Long clinicId;
 
+    @Column(name = "patient_id", updatable = false)
+    private Long patientId;
+
     @Column(name = "target_type", length = 64, updatable = false)
     private String targetType;
 

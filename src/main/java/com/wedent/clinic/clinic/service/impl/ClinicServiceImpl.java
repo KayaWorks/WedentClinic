@@ -18,6 +18,7 @@ import com.wedent.clinic.company.entity.Company;
 import com.wedent.clinic.company.repository.CompanyRepository;
 import com.wedent.clinic.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -43,6 +44,7 @@ public class ClinicServiceImpl implements ClinicService {
 
     private final ClinicRepository clinicRepository;
     private final CompanyRepository companyRepository;
+    @Qualifier("clinicMapperImpl")
     private final ClinicMapper clinicMapper;
     private final AuditEventPublisher auditEventPublisher;
 

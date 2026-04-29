@@ -23,6 +23,7 @@ import com.wedent.clinic.treatment.mapper.TreatmentMapper;
 import com.wedent.clinic.treatment.repository.TreatmentRepository;
 import com.wedent.clinic.treatment.service.TreatmentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -54,6 +55,7 @@ public class TreatmentServiceImpl implements TreatmentService {
     private final TreatmentRepository repository;
     private final PatientRepository patientRepository;
     private final EmployeeRepository employeeRepository;
+    @Qualifier("treatmentMapperImpl")
     private final TreatmentMapper mapper;
     private final AuditEventPublisher auditEventPublisher;
 
@@ -87,6 +89,7 @@ public class TreatmentServiceImpl implements TreatmentService {
                 .actorUserId(SecurityUtils.currentUserIdOrNull())
                 .companyId(companyId)
                 .clinicId(patient.getClinic().getId())
+                .patientId(patientId)
                 .targetType("Treatment")
                 .targetId(saved.getId())
                 .detail(Map.of(
@@ -162,6 +165,7 @@ public class TreatmentServiceImpl implements TreatmentService {
                 .actorUserId(SecurityUtils.currentUserIdOrNull())
                 .companyId(treatment.getCompany().getId())
                 .clinicId(treatment.getClinic().getId())
+                .patientId(treatment.getPatient().getId())
                 .targetType("Treatment")
                 .targetId(treatment.getId())
                 .detail(diff.isEmpty() ? Map.of("noop", true) : diff)
@@ -182,6 +186,7 @@ public class TreatmentServiceImpl implements TreatmentService {
                 .actorUserId(SecurityUtils.currentUserIdOrNull())
                 .companyId(treatment.getCompany().getId())
                 .clinicId(treatment.getClinic().getId())
+                .patientId(treatment.getPatient().getId())
                 .targetType("Treatment")
                 .targetId(treatment.getId())
                 .detail(Map.of(

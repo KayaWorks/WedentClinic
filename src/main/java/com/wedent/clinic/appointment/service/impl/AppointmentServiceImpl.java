@@ -30,6 +30,7 @@ import com.wedent.clinic.patient.repository.PatientRepository;
 import com.wedent.clinic.security.SecurityUtils;
 import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -50,6 +51,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final PatientRepository patientRepository;
     private final EmployeeRepository employeeRepository;
     private final ClinicRepository clinicRepository;
+    @Qualifier("appointmentMapperImpl")
     private final AppointmentMapper appointmentMapper;
     private final TenantScopeResolver tenantScopeResolver;
     private final AuditEventPublisher auditEventPublisher;
@@ -93,6 +95,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .actorUserId(SecurityUtils.currentUserIdOrNull())
                 .companyId(companyId)
                 .clinicId(clinic.getId())
+                .patientId(saved.getPatient().getId())
                 .targetType("Appointment")
                 .targetId(saved.getId())
                 .detail(Map.of(
@@ -136,9 +139,11 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .actorUserId(SecurityUtils.currentUserIdOrNull())
                 .companyId(companyId)
                 .clinicId(appointment.getClinic().getId())
+                .patientId(appointment.getPatient().getId())
                 .targetType("Appointment")
                 .targetId(appointment.getId())
                 .detail(Map.of(
+                        "patientId", appointment.getPatient().getId(),
                         "doctorId", doctor.getId(),
                         "date", appointment.getAppointmentDate().toString()
                 ))
@@ -169,9 +174,11 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .actorUserId(SecurityUtils.currentUserIdOrNull())
                 .companyId(companyId)
                 .clinicId(appointment.getClinic().getId())
+                .patientId(appointment.getPatient().getId())
                 .targetType("Appointment")
                 .targetId(appointment.getId())
-                .detail(Map.of("from", current.name(), "to", next.name()))
+                .detail(Map.of("patientId", appointment.getPatient().getId(),
+                        "from", current.name(), "to", next.name()))
                 .build());
 
         return appointmentMapper.toResponse(appointment);
@@ -306,14 +313,17 @@ public class AppointmentServiceImpl implements AppointmentService {
         SecurityUtils.verifyClinicAccess(appointment.getClinic().getId());
 
         Long clinicId = appointment.getClinic().getId();
+        Long aptPatientId = appointment.getPatient().getId();
         appointmentRepository.delete(appointment);
 
         auditEventPublisher.publish(AuditEvent.builder(AuditEventType.APPOINTMENT_DELETED)
                 .actorUserId(SecurityUtils.currentUserIdOrNull())
                 .companyId(companyId)
                 .clinicId(clinicId)
+                .patientId(aptPatientId)
                 .targetType("Appointment")
                 .targetId(id)
+                .detail(Map.of("patientId", aptPatientId))
                 .build());
     }
 

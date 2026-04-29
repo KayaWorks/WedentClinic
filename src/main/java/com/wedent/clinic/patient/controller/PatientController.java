@@ -5,6 +5,7 @@ import com.wedent.clinic.common.dto.PageResponse;
 import com.wedent.clinic.patient.dto.PatientCountResponse;
 import com.wedent.clinic.patient.dto.PatientCreateRequest;
 import com.wedent.clinic.patient.dto.PatientResponse;
+import com.wedent.clinic.patient.dto.PatientSummaryResponse;
 import com.wedent.clinic.patient.dto.PatientUpdateRequest;
 import com.wedent.clinic.patient.service.PatientService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -76,6 +77,13 @@ public class PatientController {
             @PathVariable Long id,
             @Valid @RequestBody PatientUpdateRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(patientService.update(id, request)));
+    }
+
+    @Operation(summary = "Aggregated clinical + financial summary for the patient overview card")
+    @PreAuthorize("hasAnyRole('CLINIC_OWNER','MANAGER','DOCTOR','STAFF')")
+    @GetMapping("/{id}/summary")
+    public ResponseEntity<ApiResponse<PatientSummaryResponse>> getSummary(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(patientService.getSummary(id)));
     }
 
     @Operation(summary = "Soft-delete a patient")
